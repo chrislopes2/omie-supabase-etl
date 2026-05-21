@@ -77,7 +77,8 @@ def puxar_contas_receber(empresa_config):
                     "data_vencimento": converter_data(conta.get("data_vencimento")),
                     "valor_documento": conta.get("valor_documento"),
                     "status_titulo": conta.get("status_titulo"),
-                    "codigo_categoria": conta.get("codigo_categoria")
+                    "codigo_categoria": conta.get("codigo_categoria"),
+                    "categorias": conta.get("categorias")
                 }
                 todos_registros.append(registro)
             pagina += 1
