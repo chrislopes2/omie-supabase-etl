@@ -178,10 +178,44 @@ def puxar_conta_corrente(empresa_config):
                     "usuario_inclusao": info.get("uInc"),
                     "last_update": converter_data_hora(info.get("dAlt"), info.get("hAlt")),
                     "departamentos": lanc.get("departamentos"),
-                    
-                    # Tentar pegar os IDs de origem se existirem, do contrário nulo.
-                    "id_origem_receber": diversos.get("nCodTituloReceber", None), # Campo hipotético comum no Omie
+                    "id_origem_receber": diversos.get("nCodTituloReceber", None),
                     "id_origem_pagar": diversos.get("nCodTituloPagar", None)
+                }
+                todos_registros.append(registro)
+            pagina += 1
+        else:
+            tem_mais = False
+            
+    return todos_registros
+
+
+def puxar_departamentos(empresa_config):
+    pagina = 1
+    tem_mais = True
+    todos_registros = []
+    url = "https://app.omie.com.br/api/v1/geral/departamentos/"
+    
+    while tem_mais:
+        body = {
+            "call": "ListarDepartamentos",
+            "app_key": empresa_config["app_key"],
+            "app_secret": empresa_config["app_secret"],
+            "param": [{"pagina": pagina, "registros_por_pagina": 100}]
+        }
+        response = requests.post(url, json=body)
+        if response.status_code != 200:
+            break
+            
+        data = response.json()
+        if "departamentos" in data and len(data["departamentos"]) > 0:
+            for dept in data["departamentos"]:
+                registro = {
+                    "codigo": dept.get("codigo"),
+                    "empresa_nome": empresa_config["empresa"],
+                    "empresa_cnpj": empresa_config["cnpj"],
+                    "descricao": dept.get("descricao"),
+                    "estrutura": dept.get("estrutura"),
+                    "inativo": dept.get("inativo")
                 }
                 todos_registros.append(registro)
             pagina += 1
@@ -206,9 +240,10 @@ def rodar_rotina():
         requests.delete(f"{SUPABASE_URL}/rest/v1/contas_receber_grupo?codigo_lancamento_omie=gt.0", headers=headers_supabase)
         requests.delete(f"{SUPABASE_URL}/rest/v1/clientes_grupo?codigo_cliente_omie=gt.0", headers=headers_supabase)
         requests.delete(f"{SUPABASE_URL}/rest/v1/conta_corrente?codigo_lancamento=gt.0", headers=headers_supabase)
+        requests.delete(f"{SUPABASE_URL}/rest/v1/departamentos_omie?codigo=not.is.null", headers=headers_supabase)
         print("Tabelas antigas limpas com sucesso.")
     except Exception as e:
-        print(f"Erro ao limpar tabela: {e}")
+        print(f"Erro ao limpar tabelas: {e}")
 
     for empresa in EMPRESAS:
         print(f"\\nExtraindo dados de: {empresa['empresa']}...")
@@ -254,6 +289,20 @@ def rodar_rotina():
                 print(f"✅ Inseridos {len(lancamentos_cc)} Lançamentos CC para {empresa['empresa']}")
             except Exception as e:
                 print(f"❌ Erro ao enviar Conta Corrente da empresa {empresa['empresa']}: {e}")
+
+        # 4. DEPARTAMENTOS
+        departamentos = puxar_departamentos(empresa)
+        if departamentos:
+            try:
+                tamanho_lote = 500
+                for i in range(0, len(departamentos), tamanho_lote):
+                    lote = departamentos[i:i + tamanho_lote]
+                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/departamentos_omie", json=lote, headers=headers_supabase)
+                    if resp.status_code not in (200, 201):
+                         print(f"❌ Erro na API do Supabase (Departamentos): {resp.text}")
+                print(f"✅ Inseridos {len(departamentos)} Departamentos para {empresa['empresa']}")
+            except Exception as e:
+                print(f"❌ Erro ao enviar Departamentos da empresa {empresa['empresa']}: {e}")
             
     print("\\nFIM DA ROTINA NOTURNA!")
 
