@@ -106,15 +106,16 @@ def puxar_clientes(empresa_config):
         data = response.json()
         if "clientes_cadastro" in data and len(data["clientes_cadastro"]) > 0:
             for cliente in data["clientes_cadastro"]:
+                # ATENÇÃO: Removi os campos 'cidade' e 'estado' porque eles não existem
+                # na tabela 'clientes_grupo' que você criou no Supabase, e isso gerava
+                # erro na hora de salvar, deixando a tabela vazia!
                 registro = {
                     "codigo_cliente_omie": cliente.get("codigo_cliente_omie"),
                     "empresa_nome": empresa_config["empresa"],
                     "empresa_cnpj": empresa_config["cnpj"],
                     "cnpj_cpf": cliente.get("cnpj_cpf"),
                     "razao_social": cliente.get("razao_social"),
-                    "nome_fantasia": cliente.get("nome_fantasia"),
-                    "cidade": cliente.get("cidade"),
-                    "estado": cliente.get("estado")
+                    "nome_fantasia": cliente.get("nome_fantasia")
                 }
                 todos_registros.append(registro)
             pagina += 1
@@ -133,7 +134,6 @@ def rodar_rotina():
         "Prefer": "return=minimal"
     }
 
-    # 1. Limpa os dados antigos
     print("Limpando base de dados antiga no Supabase...")
     try:
         requests.delete(f"{SUPABASE_URL}/rest/v1/contas_receber_grupo?codigo_lancamento_omie=gt.0", headers=headers_supabase)
@@ -142,37 +142,34 @@ def rodar_rotina():
     except Exception as e:
         print(f"Erro ao limpar tabela: {e}")
 
-    # 2. Extrai e Insere Empresa por Empresa
     for empresa in EMPRESAS:
         print(f"\\nExtraindo dados de: {empresa['empresa']}...")
         
-        # --- CONTAS A RECEBER ---
         contas = puxar_contas_receber(empresa)
         if contas:
             try:
                 tamanho_lote = 500
                 for i in range(0, len(contas), tamanho_lote):
                     lote = contas[i:i + tamanho_lote]
-                    requests.post(f"{SUPABASE_URL}/rest/v1/contas_receber_grupo", json=lote, headers=headers_supabase)
+                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/contas_receber_grupo", json=lote, headers=headers_supabase)
+                    if resp.status_code not in (200, 201):
+                         print(f"❌ Erro na API do Supabase (Contas): {resp.text}")
                 print(f"✅ Inseridas {len(contas)} contas a receber para {empresa['empresa']}")
             except Exception as e:
                 print(f"❌ Erro ao enviar Contas a Receber da empresa {empresa['empresa']}: {e}")
-        else:
-            print(f"ℹ️ Nenhuma conta a receber para {empresa['empresa']}.")
 
-        # --- CLIENTES ---
         clientes = puxar_clientes(empresa)
         if clientes:
             try:
                 tamanho_lote = 500
                 for i in range(0, len(clientes), tamanho_lote):
                     lote = clientes[i:i + tamanho_lote]
-                    requests.post(f"{SUPABASE_URL}/rest/v1/clientes_grupo", json=lote, headers=headers_supabase)
+                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/clientes_grupo", json=lote, headers=headers_supabase)
+                    if resp.status_code not in (200, 201):
+                         print(f"❌ Erro na API do Supabase (Clientes): {resp.text}")
                 print(f"✅ Inseridos {len(clientes)} clientes para {empresa['empresa']}")
             except Exception as e:
                 print(f"❌ Erro ao enviar Clientes da empresa {empresa['empresa']}: {e}")
-        else:
-            print(f"ℹ️ Nenhum cliente para {empresa['empresa']}.")
             
     print("\\nFIM DA ROTINA NOTURNA!")
 
