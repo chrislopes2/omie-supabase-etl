@@ -225,6 +225,57 @@ def puxar_departamentos(empresa_config):
     return todos_registros
 
 
+def puxar_categorias(empresa_config):
+    pagina = 1
+    tem_mais = True
+    todos_registros = []
+    url = "https://app.omie.com.br/api/v1/geral/categorias/"
+    
+    while tem_mais:
+        body = {
+            "call": "ListarCategorias",
+            "app_key": empresa_config["app_key"],
+            "app_secret": empresa_config["app_secret"],
+            "param": [{"pagina": pagina, "registros_por_pagina": 100}]
+        }
+        response = requests.post(url, json=body)
+        if response.status_code != 200:
+            break
+            
+        data = response.json()
+        if "categoria_cadastro" in data and len(data["categoria_cadastro"]) > 0:
+            for cat in data["categoria_cadastro"]:
+                registro = {
+                    "codigo": cat.get("codigo"),
+                    "empresa_nome": empresa_config["empresa"],
+                    "empresa_cnpj": empresa_config["cnpj"],
+                    "descricao": cat.get("descricao"),
+                    "descricao_padrao": cat.get("descricao_padrao"),
+                    "categoria_superior": cat.get("categoria_superior"),
+                    "conta_despesa": cat.get("conta_despesa"),
+                    "conta_receita": cat.get("conta_receita"),
+                    "conta_inativa": cat.get("conta_inativa"),
+                    "definida_pelo_usuario": cat.get("definida_pelo_usuario"),
+                    "nao_exibir": cat.get("nao_exibir"),
+                    "totalizadora": cat.get("totalizadora"),
+                    "transferencia": cat.get("transferencia"),
+                    "codigo_dre": cat.get("codigo_dre"),
+                    "id_conta_contabil": cat.get("id_conta_contabil"),
+                    "tag_conta_contabil": cat.get("tag_conta_contabil"),
+                    "natureza": cat.get("natureza"),
+                    "tipo_categoria": cat.get("tipo_categoria"),
+                    "dados_dre": cat.get("dadosDRE"),
+                    "codigo_valores_unidades": cat.get("codigo_valores_unidades", None),
+                    "bandeiras": cat.get("bandeiras", None)
+                }
+                todos_registros.append(registro)
+            pagina += 1
+        else:
+            tem_mais = False
+            
+    return todos_registros
+
+
 def rodar_rotina():
     print("Iniciando rotina noturna (Multi-Tenant Omie -> Supabase) usando API Direta...")
     
@@ -241,6 +292,7 @@ def rodar_rotina():
         requests.delete(f"{SUPABASE_URL}/rest/v1/clientes_grupo?codigo_cliente_omie=gt.0", headers=headers_supabase)
         requests.delete(f"{SUPABASE_URL}/rest/v1/conta_corrente?codigo_lancamento=gt.0", headers=headers_supabase)
         requests.delete(f"{SUPABASE_URL}/rest/v1/departamentos_omie?codigo=not.is.null", headers=headers_supabase)
+        requests.delete(f"{SUPABASE_URL}/rest/v1/categorias_omie?codigo=not.is.null", headers=headers_supabase)
         print("Tabelas antigas limpas com sucesso.")
     except Exception as e:
         print(f"Erro ao limpar tabelas: {e}")
@@ -303,6 +355,20 @@ def rodar_rotina():
                 print(f"✅ Inseridos {len(departamentos)} Departamentos para {empresa['empresa']}")
             except Exception as e:
                 print(f"❌ Erro ao enviar Departamentos da empresa {empresa['empresa']}: {e}")
+
+        # 5. CATEGORIAS
+        categorias = puxar_categorias(empresa)
+        if categorias:
+            try:
+                tamanho_lote = 500
+                for i in range(0, len(categorias), tamanho_lote):
+                    lote = categorias[i:i + tamanho_lote]
+                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/categorias_omie", json=lote, headers=headers_supabase)
+                    if resp.status_code not in (200, 201):
+                         print(f"❌ Erro na API do Supabase (Categorias): {resp.text}")
+                print(f"✅ Inseridas {len(categorias)} Categorias para {empresa['empresa']}")
+            except Exception as e:
+                print(f"❌ Erro ao enviar Categorias da empresa {empresa['empresa']}: {e}")
             
     print("\\nFIM DA ROTINA NOTURNA!")
 
