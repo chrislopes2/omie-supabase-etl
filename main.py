@@ -84,6 +84,7 @@ def puxar_contas_receber(empresa_config):
                     "empresa_cnpj": empresa_config["cnpj"],
                     "codigo_cliente_fornecedor": conta.get("codigo_cliente_fornecedor"),
                     "numero_documento": conta.get("numero_documento"),
+                    "data_emissao": converter_data(conta.get("data_emissao")),
                     "data_vencimento": converter_data(conta.get("data_vencimento")),
                     "valor_documento": conta.get("valor_documento"),
                     "status_titulo": conta.get("status_titulo"),
