@@ -1,8 +1,6 @@
 import os
 import requests
 import json
-from datetime import datetime
-from supabase import create_client, Client
 
 # Configurações do Supabase (Vão vir dos "Secrets" do Github Actions)
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -12,7 +10,8 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     print("ERRO: Variáveis de ambiente SUPABASE_URL e SUPABASE_KEY não configuradas.")
     exit(1)
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Garante que a URL não termine com barra para não duplicar na hora de montar
+SUPABASE_URL = SUPABASE_URL.rstrip('/')
 
 EMPRESAS = [
   { "empresa": "ALIANÇA LEGAL", "cnpj": "12.340.921/0001-82", "app_key": "2901976098021", "app_secret": "e58a09c75425faa713a8e582bcaf29d7" },
@@ -42,7 +41,6 @@ EMPRESAS = [
 ]
 
 def converter_data(data_br):
-    """Converte DD/MM/YYYY para YYYY-MM-DD"""
     if not data_br:
         return None
     try:
@@ -94,15 +92,23 @@ def puxar_contas_receber(empresa_config):
     return todos_registros
 
 def rodar_rotina():
-    print("Iniciando rotina noturna (Multi-Tenant Omie -> Supabase)...")
+    print("Iniciando rotina noturna (Multi-Tenant Omie -> Supabase) usando API Direta...")
     
-    # 1. Limpa os dados antigos
+    headers_supabase = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+    }
+
+    # 1. Limpa os dados antigos via API Rest do Supabase
     print("Limpando base de dados antiga no Supabase...")
     try:
-        supabase.table('contas_receber_grupo').delete().neq('codigo_lancamento_omie', 0).execute()
+        delete_url = f"{SUPABASE_URL}/rest/v1/contas_receber_grupo?codigo_lancamento_omie=gt.0"
+        del_resp = requests.delete(delete_url, headers=headers_supabase)
+        print(f"Delete Status: {del_resp.status_code}")
     except Exception as e:
         print(f"Erro ao limpar tabela: {e}")
-        # Continua mesmo se der erro (a tabela pode já estar vazia)
 
     # 2. Extrai e Insere Empresa por Empresa
     for empresa in EMPRESAS:
@@ -111,14 +117,17 @@ def rodar_rotina():
         
         if contas:
             try:
-                # Divide em lotes de 1000 para não estourar o limite de payload do Supabase
-                tamanho_lote = 1000
+                tamanho_lote = 500
                 for i in range(0, len(contas), tamanho_lote):
                     lote = contas[i:i + tamanho_lote]
-                    supabase.table('contas_receber_grupo').insert(lote).execute()
+                    insert_url = f"{SUPABASE_URL}/rest/v1/contas_receber_grupo"
+                    insert_resp = requests.post(insert_url, json=lote, headers=headers_supabase)
+                    
+                    if insert_resp.status_code not in [200, 201]:
+                        print(f"Erro ao inserir lote no Supabase: {insert_resp.text}")
                 print(f"✅ Sucesso! Inseridas {len(contas)} contas para {empresa['empresa']}")
             except Exception as e:
-                print(f"❌ Erro ao inserir dados da empresa {empresa['empresa']} no Supabase: {e}")
+                print(f"❌ Erro ao enviar dados da empresa {empresa['empresa']}: {e}")
         else:
             print(f"ℹ️ Nenhuma conta a receber encontrada para {empresa['empresa']}.")
             
