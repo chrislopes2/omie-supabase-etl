@@ -2,7 +2,7 @@ import os
 import requests
 import json
 
-# Configurações do Supabase (Vão vir dos "Secrets" do Github Actions)
+# Configurações do Supabase
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
@@ -10,7 +10,6 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     print("ERRO: Variáveis de ambiente SUPABASE_URL e SUPABASE_KEY não configuradas.")
     exit(1)
 
-# Garante que a URL não termine com barra para não duplicar na hora de montar
 SUPABASE_URL = SUPABASE_URL.rstrip('/')
 
 EMPRESAS = [
@@ -53,7 +52,6 @@ def puxar_contas_receber(empresa_config):
     pagina = 1
     tem_mais = True
     todos_registros = []
-    
     url = "https://app.omie.com.br/api/v1/financas/contareceber/"
     
     while tem_mais:
@@ -63,14 +61,11 @@ def puxar_contas_receber(empresa_config):
             "app_secret": empresa_config["app_secret"],
             "param": [{"pagina": pagina, "registros_por_pagina": 100, "apenas_importado_api": "N"}]
         }
-        
         response = requests.post(url, json=body)
         if response.status_code != 200:
-            print(f"Erro ao consultar API para {empresa_config['empresa']}: {response.text}")
             break
             
         data = response.json()
-        
         if "conta_receber_cadastro" in data and len(data["conta_receber_cadastro"]) > 0:
             for conta in data["conta_receber_cadastro"]:
                 registro = {
@@ -91,6 +86,43 @@ def puxar_contas_receber(empresa_config):
             
     return todos_registros
 
+def puxar_clientes(empresa_config):
+    pagina = 1
+    tem_mais = True
+    todos_registros = []
+    url = "https://app.omie.com.br/api/v1/geral/clientes/"
+    
+    while tem_mais:
+        body = {
+            "call": "ListarClientes",
+            "app_key": empresa_config["app_key"],
+            "app_secret": empresa_config["app_secret"],
+            "param": [{"pagina": pagina, "registros_por_pagina": 100, "apenas_importado_api": "N"}]
+        }
+        response = requests.post(url, json=body)
+        if response.status_code != 200:
+            break
+            
+        data = response.json()
+        if "clientes_cadastro" in data and len(data["clientes_cadastro"]) > 0:
+            for cliente in data["clientes_cadastro"]:
+                registro = {
+                    "codigo_cliente_omie": cliente.get("codigo_cliente_omie"),
+                    "empresa_nome": empresa_config["empresa"],
+                    "empresa_cnpj": empresa_config["cnpj"],
+                    "cnpj_cpf": cliente.get("cnpj_cpf"),
+                    "razao_social": cliente.get("razao_social"),
+                    "nome_fantasia": cliente.get("nome_fantasia"),
+                    "cidade": cliente.get("cidade"),
+                    "estado": cliente.get("estado")
+                }
+                todos_registros.append(registro)
+            pagina += 1
+        else:
+            tem_mais = False
+            
+    return todos_registros
+
 def rodar_rotina():
     print("Iniciando rotina noturna (Multi-Tenant Omie -> Supabase) usando API Direta...")
     
@@ -101,37 +133,48 @@ def rodar_rotina():
         "Prefer": "return=minimal"
     }
 
-    # 1. Limpa os dados antigos via API Rest do Supabase
+    # 1. Limpa os dados antigos
     print("Limpando base de dados antiga no Supabase...")
     try:
-        delete_url = f"{SUPABASE_URL}/rest/v1/contas_receber_grupo?codigo_lancamento_omie=gt.0"
-        del_resp = requests.delete(delete_url, headers=headers_supabase)
-        print(f"Delete Status: {del_resp.status_code}")
+        requests.delete(f"{SUPABASE_URL}/rest/v1/contas_receber_grupo?codigo_lancamento_omie=gt.0", headers=headers_supabase)
+        requests.delete(f"{SUPABASE_URL}/rest/v1/clientes_grupo?codigo_cliente_omie=gt.0", headers=headers_supabase)
+        print("Tabelas antigas limpas com sucesso.")
     except Exception as e:
         print(f"Erro ao limpar tabela: {e}")
 
     # 2. Extrai e Insere Empresa por Empresa
     for empresa in EMPRESAS:
-        print(f"Extraindo dados de: {empresa['empresa']}...")
-        contas = puxar_contas_receber(empresa)
+        print(f"\\nExtraindo dados de: {empresa['empresa']}...")
         
+        # --- CONTAS A RECEBER ---
+        contas = puxar_contas_receber(empresa)
         if contas:
             try:
                 tamanho_lote = 500
                 for i in range(0, len(contas), tamanho_lote):
                     lote = contas[i:i + tamanho_lote]
-                    insert_url = f"{SUPABASE_URL}/rest/v1/contas_receber_grupo"
-                    insert_resp = requests.post(insert_url, json=lote, headers=headers_supabase)
-                    
-                    if insert_resp.status_code not in [200, 201]:
-                        print(f"Erro ao inserir lote no Supabase: {insert_resp.text}")
-                print(f"✅ Sucesso! Inseridas {len(contas)} contas para {empresa['empresa']}")
+                    requests.post(f"{SUPABASE_URL}/rest/v1/contas_receber_grupo", json=lote, headers=headers_supabase)
+                print(f"✅ Inseridas {len(contas)} contas a receber para {empresa['empresa']}")
             except Exception as e:
-                print(f"❌ Erro ao enviar dados da empresa {empresa['empresa']}: {e}")
+                print(f"❌ Erro ao enviar Contas a Receber da empresa {empresa['empresa']}: {e}")
         else:
-            print(f"ℹ️ Nenhuma conta a receber encontrada para {empresa['empresa']}.")
+            print(f"ℹ️ Nenhuma conta a receber para {empresa['empresa']}.")
+
+        # --- CLIENTES ---
+        clientes = puxar_clientes(empresa)
+        if clientes:
+            try:
+                tamanho_lote = 500
+                for i in range(0, len(clientes), tamanho_lote):
+                    lote = clientes[i:i + tamanho_lote]
+                    requests.post(f"{SUPABASE_URL}/rest/v1/clientes_grupo", json=lote, headers=headers_supabase)
+                print(f"✅ Inseridos {len(clientes)} clientes para {empresa['empresa']}")
+            except Exception as e:
+                print(f"❌ Erro ao enviar Clientes da empresa {empresa['empresa']}: {e}")
+        else:
+            print(f"ℹ️ Nenhum cliente para {empresa['empresa']}.")
             
-    print("FIM DA ROTINA NOTURNA!")
+    print("\\nFIM DA ROTINA NOTURNA!")
 
 if __name__ == "__main__":
     rodar_rotina()
