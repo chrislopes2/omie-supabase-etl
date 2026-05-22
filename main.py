@@ -179,8 +179,8 @@ def puxar_conta_corrente(empresa_config):
                     "usuario_inclusao": info.get("uInc"),
                     "last_update": converter_data_hora(info.get("dAlt"), info.get("hAlt")),
                     "departamentos": lanc.get("departamentos"),
-                    "id_origem_receber": diversos.get("nCodTituloReceber", None),
-                    "id_origem_pagar": diversos.get("nCodTituloPagar", None)
+                    "id_origem_receber": diversos.get("nCodLancCR", None),
+                    "id_origem_pagar": diversos.get("nCodLancCP", None)
                 }
                 todos_registros.append(registro)
             pagina += 1
