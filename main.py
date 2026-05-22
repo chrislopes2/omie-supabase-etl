@@ -89,7 +89,8 @@ def puxar_contas_receber(empresa_config):
                     "valor_documento": conta.get("valor_documento"),
                     "status_titulo": conta.get("status_titulo"),
                     "codigo_categoria": conta.get("codigo_categoria"),
-                    "categorias": conta.get("categorias")
+                    "categorias": conta.get("categorias"),
+                    "departamentos": conta.get("departamentos")
                 }
                 todos_registros.append(registro)
             pagina += 1
