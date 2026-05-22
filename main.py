@@ -367,7 +367,7 @@ def rodar_rotina():
         requests.delete(f"{SUPABASE_URL}/rest/v1/conta_corrente?codigo_lancamento=gt.0", headers=headers_supabase)
         requests.delete(f"{SUPABASE_URL}/rest/v1/departamentos_omie?codigo=not.is.null", headers=headers_supabase)
         requests.delete(f"{SUPABASE_URL}/rest/v1/categorias_omie?codigo=not.is.null", headers=headers_supabase)
-        requests.delete(f"{SUPABASE_URL}/rest/v1/fin_fato_transacoes?id_movimento=gt.0", headers=headers_supabase)
+        requests.delete(f"{SUPABASE_URL}/rest/v1/movimentos_financeiros?id_movimento=gt.0", headers=headers_supabase)
         print("Tabelas antigas limpas com sucesso.")
     except Exception as e:
         print(f"Erro ao limpar tabelas: {e}")
@@ -452,7 +452,7 @@ def rodar_rotina():
                 tamanho_lote = 500
                 for i in range(0, len(movimentos), tamanho_lote):
                     lote = movimentos[i:i + tamanho_lote]
-                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/fin_fato_transacoes", json=lote, headers=headers_supabase)
+                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/movimentos_financeiros", json=lote, headers=headers_supabase)
                     if resp.status_code not in (200, 201):
                          print(f"❌ Erro na API do Supabase (Movimentos Financeiros): {resp.text}")
                 print(f"✅ Inseridas {len(movimentos)} Movimentos Financeiros para {empresa['empresa']}")
