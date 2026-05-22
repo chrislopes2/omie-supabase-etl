@@ -277,6 +277,79 @@ def puxar_categorias(empresa_config):
     return todos_registros
 
 
+def puxar_movimentos_financeiros(empresa_config):
+    pagina = 1
+    tem_mais = True
+    todos_registros = []
+    url = "https://app.omie.com.br/api/v1/financas/mf/"
+    
+    while tem_mais:
+        body = {
+            "call": "ListarMovimentos",
+            "app_key": empresa_config["app_key"],
+            "app_secret": empresa_config["app_secret"],
+            "param": [{"nPagina": pagina, "nRegPorPagina": 100, "cTpLancamento": "CR"}]
+        }
+        response = requests.post(url, json=body)
+        if response.status_code != 200:
+            break
+            
+        data = response.json()
+        if "movimentos" in data and len(data["movimentos"]) > 0:
+            for mov in data["movimentos"]:
+                det = mov.get("detalhes", {})
+                res = mov.get("resumo", {})
+                
+                # Filtrar apenas natureza "Receber" (R)
+                if det.get("cNatureza") != "R":
+                    continue
+                    
+                registro = {
+                    "id_movimento": det.get("nCodTitulo"),
+                    "empresa_nome": empresa_config["empresa"],
+                    "empresa_cnpj": empresa_config["cnpj"],
+                    "id_conta_corrente": det.get("nCodCC"),
+                    "id_cliente_fornecedor": det.get("nCodCliente"),
+                    "id_titulo_origem": det.get("nCodTitRepet"),
+                    "grupo": det.get("cGrupo"),
+                    "natureza": det.get("cNatureza"),
+                    "tipo": det.get("cTipo"),
+                    "origem": det.get("cOrigem"),
+                    "categoria_codigo": det.get("cCodCateg"),
+                    "numero_titulo": det.get("cNumTitulo"),
+                    "numero_parcela": det.get("cNumParcela"),
+                    "chave_nfe": det.get("cChaveNFe"),
+                    "cpf_cnpj": det.get("cCPFCNPJCliente"),
+                    "codigo_barras": det.get("cCodigoBarras"),
+                    "data_emissao": converter_data(det.get("dDtEmissao")),
+                    "data_vencimento": converter_data(det.get("dDtVenc")),
+                    "data_previsao": converter_data(det.get("dDtPrevisao")),
+                    "data_pagamento": converter_data(det.get("dDtPagamento")),
+                    "data_registro": converter_data(det.get("dDtRegistro")),
+                    "cstatus": det.get("cStatus"),
+                    "status": det.get("cStatus"),
+                    "liquidado": res.get("cLiquidado"),
+                    "valor_titulo": det.get("nValorTitulo") or 0.0,
+                    "valor_pago": res.get("nValPago") or 0.0,
+                    "valor_liquido": res.get("nValLiquido") or 0.0,
+                    "valor_aberto": res.get("nValAberto") or 0.0,
+                    "valor_juros": det.get("nJuros") or res.get("nJuros") or 0.0,
+                    "valor_multa": det.get("nMulta") or res.get("nMulta") or 0.0,
+                    "valor_desconto": res.get("nDesconto") or det.get("nDesconto") or 0.0,
+                    "valor_pis": det.get("nValorPIS") or 0.0,
+                    "valor_cofins": det.get("nValorCOFINS") or 0.0,
+                    "valor_csll": det.get("nValorCSLL") or 0.0,
+                    "valor_ir": det.get("nValorIR") or 0.0,
+                    "valor_iss": det.get("nValorISS") or 0.0,
+                    "valor_inss": det.get("nValorINSS") or 0.0
+                }
+                todos_registros.append(registro)
+            pagina += 1
+        else:
+            tem_mais = False
+            
+    return todos_registros
+
 def rodar_rotina():
     print("Iniciando rotina noturna (Multi-Tenant Omie -> Supabase) usando API Direta...")
     
@@ -294,6 +367,7 @@ def rodar_rotina():
         requests.delete(f"{SUPABASE_URL}/rest/v1/conta_corrente?codigo_lancamento=gt.0", headers=headers_supabase)
         requests.delete(f"{SUPABASE_URL}/rest/v1/departamentos_omie?codigo=not.is.null", headers=headers_supabase)
         requests.delete(f"{SUPABASE_URL}/rest/v1/categorias_omie?codigo=not.is.null", headers=headers_supabase)
+        requests.delete(f"{SUPABASE_URL}/rest/v1/fin_fato_transacoes?id_movimento=gt.0", headers=headers_supabase)
         print("Tabelas antigas limpas com sucesso.")
     except Exception as e:
         print(f"Erro ao limpar tabelas: {e}")
@@ -370,6 +444,20 @@ def rodar_rotina():
                 print(f"✅ Inseridas {len(categorias)} Categorias para {empresa['empresa']}")
             except Exception as e:
                 print(f"❌ Erro ao enviar Categorias da empresa {empresa['empresa']}: {e}")
+
+        # 6. MOVIMENTOS FINANCEIROS
+        movimentos = puxar_movimentos_financeiros(empresa)
+        if movimentos:
+            try:
+                tamanho_lote = 500
+                for i in range(0, len(movimentos), tamanho_lote):
+                    lote = movimentos[i:i + tamanho_lote]
+                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/fin_fato_transacoes", json=lote, headers=headers_supabase)
+                    if resp.status_code not in (200, 201):
+                         print(f"❌ Erro na API do Supabase (Movimentos Financeiros): {resp.text}")
+                print(f"✅ Inseridas {len(movimentos)} Movimentos Financeiros para {empresa['empresa']}")
+            except Exception as e:
+                print(f"❌ Erro ao enviar Movimentos Financeiros da empresa {empresa['empresa']}: {e}")
             
     print("\\nFIM DA ROTINA NOTURNA!")
 
