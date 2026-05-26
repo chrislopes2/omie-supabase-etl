@@ -30,6 +30,18 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python main.py
 
+      - name: Executando o Script de Contas a Receber
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python contas_receber_etl.py
+
+      - name: Executando o Script de Conta Corrente
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python conta_corrente_etl.py
+
       - name: Executando o Script de Movimentos Financeiros
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

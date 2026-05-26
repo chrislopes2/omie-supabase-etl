@@ -49,54 +49,7 @@ def converter_data(data_br):
     except:
         return None
 
-def converter_data_hora(data_br, hora_br):
-    if not data_br or not hora_br:
-        return None
-    try:
-        data_fmt = converter_data(data_br)
-        return f"{data_fmt}T{hora_br}Z"
-    except:
-        return None
 
-def puxar_contas_receber(empresa_config):
-    pagina = 1
-    tem_mais = True
-    todos_registros = []
-    url = "https://app.omie.com.br/api/v1/financas/contareceber/"
-    
-    while tem_mais:
-        body = {
-            "call": "ListarContasReceber",
-            "app_key": empresa_config["app_key"],
-            "app_secret": empresa_config["app_secret"],
-            "param": [{"pagina": pagina, "registros_por_pagina": 100, "apenas_importado_api": "N"}]
-        }
-        response = requests.post(url, json=body)
-        if response.status_code != 200:
-            break
-            
-        data = response.json()
-        if "conta_receber_cadastro" in data and len(data["conta_receber_cadastro"]) > 0:
-            for conta in data["conta_receber_cadastro"]:
-                registro = {
-                    "codigo_lancamento_omie": conta.get("codigo_lancamento_omie"),
-                    "empresa_nome": empresa_config["empresa"],
-                    "empresa_cnpj": empresa_config["cnpj"],
-                    "codigo_cliente_fornecedor": conta.get("codigo_cliente_fornecedor"),
-                    "numero_documento": conta.get("numero_documento"),
-                    "data_emissao": converter_data(conta.get("data_emissao")),
-                    "data_vencimento": converter_data(conta.get("data_vencimento")),
-                    "valor_documento": conta.get("valor_documento"),
-                    "status_titulo": conta.get("status_titulo"),
-                    "codigo_categoria": conta.get("codigo_categoria"),
-                    "categorias": conta.get("categorias")
-                }
-                todos_registros.append(registro)
-            pagina += 1
-        else:
-            tem_mais = False
-            
-    return todos_registros
 
 def puxar_clientes(empresa_config):
     pagina = 1
@@ -134,60 +87,6 @@ def puxar_clientes(empresa_config):
     return todos_registros
 
 
-def puxar_conta_corrente(empresa_config):
-    pagina = 1
-    tem_mais = True
-    todos_registros = []
-    url = "https://app.omie.com.br/api/v1/financas/contacorrentelancamentos/"
-    
-    while tem_mais:
-        body = {
-            "call": "ListarLancCC",
-            "app_key": empresa_config["app_key"],
-            "app_secret": empresa_config["app_secret"],
-            "param": [{"nPagina": pagina, "nRegPorPagina": 100}]
-        }
-        response = requests.post(url, json=body)
-        if response.status_code != 200:
-            break
-            
-        data = response.json()
-        if "listaLancamentos" in data and len(data["listaLancamentos"]) > 0:
-            for lanc in data["listaLancamentos"]:
-                cabecalho = lanc.get("cabecalho", {})
-                detalhes = lanc.get("detalhes", {})
-                diversos = lanc.get("diversos", {})
-                info = lanc.get("info", {})
-                
-                registro = {
-                    "codigo_lancamento": lanc.get("nCodLanc"),
-                    "empresa_nome": empresa_config["empresa"],
-                    "empresa_cnpj": empresa_config["cnpj"],
-                    "id_conta_corrente": cabecalho.get("nCodCC"),
-                    "data_lancamento": converter_data(cabecalho.get("dDtLanc")),
-                    "valor": cabecalho.get("nValorLanc"),
-                    "codigo_categoria": detalhes.get("cCodCateg"),
-                    "numero_documento": detalhes.get("cNumDoc"),
-                    "tipo_documento": detalhes.get("cTipo"),
-                    "observacao": detalhes.get("cObs"),
-                    "id_cliente_fornecedor": detalhes.get("nCodCliente"),
-                    "id_projeto": detalhes.get("nCodProjeto"),
-                    "natureza": diversos.get("cNatureza"),
-                    "origem": diversos.get("cOrigem"),
-                    "data_conciliacao": converter_data(diversos.get("dDtConc")),
-                    "data_inclusao": converter_data(info.get("dInc")),
-                    "usuario_inclusao": info.get("uInc"),
-                    "last_update": converter_data_hora(info.get("dAlt"), info.get("hAlt")),
-                    "departamentos": lanc.get("departamentos"),
-                    "id_origem_receber": diversos.get("nCodLancCR", None),
-                    "id_origem_pagar": diversos.get("nCodLancCP", None)
-                }
-                todos_registros.append(registro)
-            pagina += 1
-        else:
-            tem_mais = False
-            
-    return todos_registros
 
 
 def puxar_departamentos(empresa_config):
@@ -291,9 +190,7 @@ def rodar_rotina():
 
     print("Limpando base de dados antiga no Supabase...")
     try:
-        requests.delete(f"{SUPABASE_URL}/rest/v1/contas_receber_grupo?codigo_lancamento_omie=gt.0", headers=headers_supabase)
         requests.delete(f"{SUPABASE_URL}/rest/v1/clientes_grupo?codigo_cliente_omie=gt.0", headers=headers_supabase)
-        requests.delete(f"{SUPABASE_URL}/rest/v1/conta_corrente?codigo_lancamento=gt.0", headers=headers_supabase)
         requests.delete(f"{SUPABASE_URL}/rest/v1/departamentos_omie?codigo=not.is.null", headers=headers_supabase)
         requests.delete(f"{SUPABASE_URL}/rest/v1/categorias_omie?codigo=not.is.null", headers=headers_supabase)
 
@@ -304,19 +201,6 @@ def rodar_rotina():
     for empresa in EMPRESAS:
         print(f"\\nExtraindo dados de: {empresa['empresa']}...")
         
-        # 1. CONTAS A RECEBER
-        contas = puxar_contas_receber(empresa)
-        if contas:
-            try:
-                tamanho_lote = 500
-                for i in range(0, len(contas), tamanho_lote):
-                    lote = contas[i:i + tamanho_lote]
-                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/contas_receber_grupo", json=lote, headers=headers_supabase)
-                    if resp.status_code not in (200, 201):
-                         print(f"❌ Erro na API do Supabase (Contas): {resp.text}")
-                print(f"✅ Inseridas {len(contas)} contas a receber para {empresa['empresa']}")
-            except Exception as e:
-                print(f"❌ Erro ao enviar Contas a Receber da empresa {empresa['empresa']}: {e}")
 
         # 2. CLIENTES
         clientes = puxar_clientes(empresa)
@@ -332,19 +216,6 @@ def rodar_rotina():
             except Exception as e:
                 print(f"❌ Erro ao enviar Clientes da empresa {empresa['empresa']}: {e}")
 
-        # 3. CONTA CORRENTE
-        lancamentos_cc = puxar_conta_corrente(empresa)
-        if lancamentos_cc:
-            try:
-                tamanho_lote = 500
-                for i in range(0, len(lancamentos_cc), tamanho_lote):
-                    lote = lancamentos_cc[i:i + tamanho_lote]
-                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/conta_corrente", json=lote, headers=headers_supabase)
-                    if resp.status_code not in (200, 201):
-                         print(f"❌ Erro na API do Supabase (Conta Corrente): {resp.text}")
-                print(f"✅ Inseridos {len(lancamentos_cc)} Lançamentos CC para {empresa['empresa']}")
-            except Exception as e:
-                print(f"❌ Erro ao enviar Conta Corrente da empresa {empresa['empresa']}: {e}")
 
         # 4. DEPARTAMENTOS
         departamentos = puxar_departamentos(empresa)
