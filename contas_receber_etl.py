@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import time
 from datetime import datetime
 
 # Configurações do Supabase
@@ -62,30 +63,47 @@ def puxar_contas_receber(empresa_config):
             "app_secret": empresa_config["app_secret"],
             "param": [{"pagina": pagina, "registros_por_pagina": 100, "apenas_importado_api": "N"}]
         }
-        response = requests.post(url, json=body)
-        if response.status_code != 200:
-            break
-            
-        data = response.json()
-        if "conta_receber_cadastro" in data and len(data["conta_receber_cadastro"]) > 0:
-            for conta in data["conta_receber_cadastro"]:
-                registro = {
-                    "codigo_lancamento_omie": conta.get("codigo_lancamento_omie"),
-                    "empresa_nome": empresa_config["empresa"],
-                    "empresa_cnpj": empresa_config["cnpj"],
-                    "codigo_cliente_fornecedor": conta.get("codigo_cliente_fornecedor"),
-                    "numero_documento": conta.get("numero_documento"),
-                    "data_emissao": converter_data(conta.get("data_emissao")),
-                    "data_vencimento": converter_data(conta.get("data_vencimento")),
-                    "valor_documento": conta.get("valor_documento"),
-                    "status_titulo": conta.get("status_titulo"),
-                    "codigo_categoria": conta.get("codigo_categoria"),
-                    "categorias": conta.get("categorias")
-                }
-                todos_registros.append(registro)
-            pagina += 1
-        else:
-            tem_mais = False
+        
+        sucesso_na_pagina = False
+        for tentativa in range(3):
+            try:
+                response = requests.post(url, json=body, timeout=30)
+                if response.status_code == 200:
+                    data = response.json()
+                    if "conta_receber_cadastro" in data and len(data["conta_receber_cadastro"]) > 0:
+                        for conta in data["conta_receber_cadastro"]:
+                            registro = {
+                                "codigo_lancamento_omie": conta.get("codigo_lancamento_omie"),
+                                "empresa_nome": empresa_config["empresa"],
+                                "empresa_cnpj": empresa_config["cnpj"],
+                                "codigo_cliente_fornecedor": conta.get("codigo_cliente_fornecedor"),
+                                "numero_documento": conta.get("numero_documento"),
+                                "data_emissao": converter_data(conta.get("data_emissao")),
+                                "data_vencimento": converter_data(conta.get("data_vencimento")),
+                                "valor_documento": conta.get("valor_documento"),
+                                "status_titulo": conta.get("status_titulo"),
+                                "codigo_categoria": conta.get("codigo_categoria"),
+                                "categorias": conta.get("categorias")
+                            }
+                            todos_registros.append(registro)
+                        
+                        sucesso_na_pagina = True
+                        pagina += 1
+                        break # Sai do retry
+                    else:
+                        tem_mais = False # Fim das páginas
+                        sucesso_na_pagina = True
+                        break
+                else:
+                    print(f"Tentativa {tentativa+1} falhou na página {pagina} com status {response.status_code}. Retentando em 5s...")
+                    time.sleep(5)
+            except Exception as e:
+                print(f"Tentativa {tentativa+1} falhou na página {pagina} com erro: {e}. Retentando em 5s...")
+                time.sleep(5)
+                
+        if not sucesso_na_pagina:
+            print(f"FALHA CRÍTICA: Não foi possível baixar a página {pagina} da Omie após 3 tentativas.")
+            return None # Sinaliza erro crítico na extração
             
     return todos_registros
 
@@ -99,18 +117,28 @@ def rodar_rotina_cr():
         "Prefer": "return=minimal, resolution=merge-duplicates"
     }
 
-    print("Limpando base de dados antiga de contas_receber_grupo no Supabase...")
-    try:
-        requests.delete(f"{SUPABASE_URL}/rest/v1/contas_receber_grupo?codigo_lancamento_omie=gt.0", headers=headers_supabase)
-        print("Tabela contas_receber_grupo limpa com sucesso.")
-    except Exception as e:
-        print(f"Erro ao limpar tabela contas_receber_grupo: {e}")
+    # O DELETE GLOBAL FOI REMOVIDO DAQUI POR SEGURANÇA!
 
     for empresa in EMPRESAS:
         print(f"\nExtraindo Contas a Receber de: {empresa['empresa']}...")
         contas = puxar_contas_receber(empresa)
+        
+        if contas is None:
+            print(f"⚠️ ERRO DETECTADO NA EXTRAÇÃO DA {empresa['empresa']}.")
+            print("PULANDO deleção e inserção para preservar os dados antigos no banco de dados!")
+            continue # Pula a deleção e inserção desta empresa
+            
         if contas:
             try:
+                # 1. Apaga apenas os dados DAQUELA EMPRESA
+                print(f"Limpando base de dados antiga de contas_receber_grupo da empresa {empresa['empresa']}...")
+                requests.delete(
+                    f"{SUPABASE_URL}/rest/v1/contas_receber_grupo", 
+                    headers=headers_supabase, 
+                    params={"empresa_cnpj": f"eq.{empresa['cnpj']}"}
+                )
+                
+                # 2. Insere os novos dados daquela empresa
                 tamanho_lote = 500
                 for i in range(0, len(contas), tamanho_lote):
                     lote = contas[i:i + tamanho_lote]
@@ -120,6 +148,8 @@ def rodar_rotina_cr():
                 print(f"✅ Inseridas {len(contas)} contas a receber para {empresa['empresa']}")
             except Exception as e:
                 print(f"❌ Erro ao enviar Contas a Receber da empresa {empresa['empresa']}: {e}")
+        else:
+            print(f"Nenhum registro encontrado para {empresa['empresa']}.")
 
     print("\nFIM DA ROTINA DE CONTAS A RECEBER!")
 

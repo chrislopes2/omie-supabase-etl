@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import time
 from datetime import datetime
 
 # Configurações do Supabase
@@ -62,63 +63,80 @@ def puxar_movimentos_financeiros(empresa_config):
             "app_secret": empresa_config["app_secret"],
             "param": [{"nPagina": pagina, "nRegPorPagina": 100, "cTpLancamento": "CR"}]
         }
-        response = requests.post(url, json=body)
-        if response.status_code != 200:
-            break
-            
-        data = response.json()
-        if "movimentos" in data and len(data["movimentos"]) > 0:
-            for mov in data["movimentos"]:
-                det = mov.get("detalhes", {})
-                res = mov.get("resumo", {})
-                
-                # Filtrar apenas natureza "Receber" (R)
-                if det.get("cNatureza") != "R":
-                    continue
-                    
-                registro = {
-                    "id_movimento": det.get("nCodTitulo"),
-                    "empresa_nome": empresa_config["empresa"],
-                    "empresa_cnpj": empresa_config["cnpj"],
-                    "id_conta_corrente": det.get("nCodCC"),
-                    "id_cliente_fornecedor": det.get("nCodCliente"),
-                    "id_titulo_origem": det.get("nCodTitRepet"),
-                    "grupo": det.get("cGrupo"),
-                    "natureza": det.get("cNatureza"),
-                    "tipo": det.get("cTipo"),
-                    "origem": det.get("cOrigem"),
-                    "categoria_codigo": det.get("cCodCateg"),
-                    "numero_titulo": det.get("cNumTitulo"),
-                    "numero_parcela": det.get("cNumParcela"),
-                    "chave_nfe": det.get("cChaveNFe"),
-                    "cpf_cnpj": det.get("cCPFCNPJCliente"),
-                    "codigo_barras": det.get("cCodigoBarras"),
-                    "data_emissao": converter_data(det.get("dDtEmissao")),
-                    "data_vencimento": converter_data(det.get("dDtVenc")),
-                    "data_previsao": converter_data(det.get("dDtPrevisao")),
-                    "data_pagamento": converter_data(det.get("dDtPagamento")),
-                    "data_registro": converter_data(det.get("dDtRegistro")),
-                    "cstatus": det.get("cStatus"),
-                    "status": det.get("cStatus"),
-                    "liquidado": res.get("cLiquidado"),
-                    "valor_titulo": det.get("nValorTitulo") or 0.0,
-                    "valor_pago": res.get("nValPago") or 0.0,
-                    "valor_liquido": res.get("nValLiquido") or 0.0,
-                    "valor_aberto": res.get("nValAberto") or 0.0,
-                    "valor_juros": det.get("nJuros") or res.get("nJuros") or 0.0,
-                    "valor_multa": det.get("nMulta") or res.get("nMulta") or 0.0,
-                    "valor_desconto": res.get("nDesconto") or det.get("nDesconto") or 0.0,
-                    "valor_pis": det.get("nValorPIS") or 0.0,
-                    "valor_cofins": det.get("nValorCOFINS") or 0.0,
-                    "valor_csll": det.get("nValorCSLL") or 0.0,
-                    "valor_ir": det.get("nValorIR") or 0.0,
-                    "valor_iss": det.get("nValorISS") or 0.0,
-                    "valor_inss": det.get("nValorINSS") or 0.0
-                }
-                todos_registros.append(registro)
-            pagina += 1
-        else:
-            tem_mais = False
+        
+        sucesso_na_pagina = False
+        for tentativa in range(3):
+            try:
+                response = requests.post(url, json=body, timeout=30)
+                if response.status_code == 200:
+                    data = response.json()
+                    if "movimentos" in data and len(data["movimentos"]) > 0:
+                        for mov in data["movimentos"]:
+                            det = mov.get("detalhes", {})
+                            res = mov.get("resumo", {})
+                            
+                            # Filtrar apenas natureza "Receber" (R)
+                            if det.get("cNatureza") != "R":
+                                continue
+                                
+                            registro = {
+                                "id_movimento": det.get("nCodTitulo"),
+                                "empresa_nome": empresa_config["empresa"],
+                                "empresa_cnpj": empresa_config["cnpj"],
+                                "id_conta_corrente": det.get("nCodCC"),
+                                "id_cliente_fornecedor": det.get("nCodCliente"),
+                                "id_titulo_origem": det.get("nCodTitRepet"),
+                                "grupo": det.get("cGrupo"),
+                                "natureza": det.get("cNatureza"),
+                                "tipo": det.get("cTipo"),
+                                "origem": det.get("cOrigem"),
+                                "categoria_codigo": det.get("cCodCateg"),
+                                "numero_titulo": det.get("cNumTitulo"),
+                                "numero_parcela": det.get("cNumParcela"),
+                                "chave_nfe": det.get("cChaveNFe"),
+                                "cpf_cnpj": det.get("cCPFCNPJCliente"),
+                                "codigo_barras": det.get("cCodigoBarras"),
+                                "data_emissao": converter_data(det.get("dDtEmissao")),
+                                "data_vencimento": converter_data(det.get("dDtVenc")),
+                                "data_previsao": converter_data(det.get("dDtPrevisao")),
+                                "data_pagamento": converter_data(det.get("dDtPagamento")),
+                                "data_registro": converter_data(det.get("dDtRegistro")),
+                                "cstatus": det.get("cStatus"),
+                                "status": det.get("cStatus"),
+                                "liquidado": res.get("cLiquidado"),
+                                "valor_titulo": det.get("nValorTitulo") or 0.0,
+                                "valor_pago": res.get("nValPago") or 0.0,
+                                "valor_liquido": res.get("nValLiquido") or 0.0,
+                                "valor_aberto": res.get("nValAberto") or 0.0,
+                                "valor_juros": det.get("nJuros") or res.get("nJuros") or 0.0,
+                                "valor_multa": det.get("nMulta") or res.get("nMulta") or 0.0,
+                                "valor_desconto": res.get("nDesconto") or det.get("nDesconto") or 0.0,
+                                "valor_pis": det.get("nValorPIS") or 0.0,
+                                "valor_cofins": det.get("nValorCOFINS") or 0.0,
+                                "valor_csll": det.get("nValorCSLL") or 0.0,
+                                "valor_ir": det.get("nValorIR") or 0.0,
+                                "valor_iss": det.get("nValorISS") or 0.0,
+                                "valor_inss": det.get("nValorINSS") or 0.0
+                            }
+                            todos_registros.append(registro)
+                        
+                        sucesso_na_pagina = True
+                        pagina += 1
+                        break # Sai do loop de retentativas
+                    else:
+                        tem_mais = False # Lista veio vazia, significa que acabou
+                        sucesso_na_pagina = True
+                        break
+                else:
+                    print(f"Tentativa {tentativa+1} falhou na página {pagina} com status {response.status_code}. Retentando em 5s...")
+                    time.sleep(5)
+            except Exception as e:
+                print(f"Tentativa {tentativa+1} falhou na página {pagina} com erro: {e}. Retentando em 5s...")
+                time.sleep(5)
+        
+        if not sucesso_na_pagina:
+            print(f"FALHA CRÍTICA: Não foi possível baixar a página {pagina} da Omie após 3 tentativas.")
+            return None # Retorna None para avisar a função principal que houve erro crítico na extração
             
     return todos_registros
 
@@ -132,18 +150,28 @@ def rodar_rotina_mf():
         "Prefer": "return=minimal, resolution=merge-duplicates"
     }
 
-    print("Limpando base de dados antiga de movimentos_financeiros no Supabase...")
-    try:
-        requests.delete(f"{SUPABASE_URL}/rest/v1/movimentos_financeiros?id_movimento=gt.0", headers=headers_supabase)
-        print("Tabela movimentos_financeiros limpa com sucesso.")
-    except Exception as e:
-        print(f"Erro ao limpar tabela movimentos_financeiros: {e}")
+    # O DELETE GLOBAL FOI REMOVIDO DAQUI POR SEGURANÇA!
 
     for empresa in EMPRESAS:
         print(f"\nExtraindo Movimentos Financeiros de: {empresa['empresa']}...")
         movimentos = puxar_movimentos_financeiros(empresa)
+        
+        if movimentos is None:
+            print(f"⚠️ ERRO DETECTADO NA EXTRAÇÃO DA {empresa['empresa']}.")
+            print("PULANDO deleção e inserção para preservar os dados antigos no banco de dados!")
+            continue # Pula a deleção e vai pra próxima empresa
+            
         if movimentos:
             try:
+                # 1. Apaga apenas os dados DAQUELA EMPRESA
+                print(f"Limpando base de dados antiga de movimentos_financeiros da empresa {empresa['empresa']}...")
+                requests.delete(
+                    f"{SUPABASE_URL}/rest/v1/movimentos_financeiros", 
+                    headers=headers_supabase, 
+                    params={"empresa_cnpj": f"eq.{empresa['cnpj']}"}
+                )
+                
+                # 2. Insere os novos dados daquela empresa
                 tamanho_lote = 500
                 for i in range(0, len(movimentos), tamanho_lote):
                     lote = movimentos[i:i + tamanho_lote]
@@ -153,6 +181,8 @@ def rodar_rotina_mf():
                 print(f"✅ Inseridas {len(movimentos)} Movimentos Financeiros para {empresa['empresa']}")
             except Exception as e:
                 print(f"❌ Erro ao enviar Movimentos Financeiros da empresa {empresa['empresa']}: {e}")
+        else:
+            print(f"Nenhum registro encontrado para {empresa['empresa']}.")
             
     print("\nFIM DA ROTINA DE MOVIMENTOS FINANCEIROS!")
 
