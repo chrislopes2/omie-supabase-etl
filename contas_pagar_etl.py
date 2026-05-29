@@ -51,14 +51,20 @@ def converter_data(data_br):
     except:
         return None
 
-def converter_data_hora(data_br, hora_br):
-    if not data_br or not hora_br:
+def tratar_json(obj):
+    if not obj:
         return None
-    try:
-        data_fmt = converter_data(data_br)
-        return f"{data_fmt}T{hora_br}Z"
-    except:
-        return None
+    
+    # Se a Omie mandou como string, decodificamos para objeto Python (lista/dicionário)
+    # Assim o 'requests' envia como JSON real e o Supabase não salva como texto puro.
+    if isinstance(obj, str):
+        try:
+            return json.loads(obj)
+        except json.JSONDecodeError:
+            return None
+            
+    # Se já for um objeto Python (lista ou dict), deixa como está
+    return obj
 
 def puxar_contas_pagar(empresa_config):
     pagina = 1
@@ -129,8 +135,8 @@ def puxar_contas_pagar(empresa_config):
                                 "valor_inss": conta.get("valor_inss"),
                                 "valor_pis": conta.get("valor_pis"),
                                 "valor_iss": conta.get("valor_iss"),
-                                "distribuicao": conta.get("distribuicao"),
-                                "info": conta.get("info")
+                                "distribuicao": tratar_json(conta.get("distribuicao")),
+                                "info": tratar_json(conta.get("info"))
                             }
                             todos_registros.append(registro)
                         
