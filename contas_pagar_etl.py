@@ -60,6 +60,12 @@ def converter_data_hora(data_br, hora_br):
     except:
         return None
 
+def tratar_json(obj):
+    if not obj:
+        return None
+    # Garante que o objeto seja convertido para string JSON válida para o Supabase
+    return obj if isinstance(obj, str) else json.dumps(obj)
+
 def puxar_contas_pagar(empresa_config):
     pagina = 1
     tem_mais = True
@@ -129,8 +135,8 @@ def puxar_contas_pagar(empresa_config):
                                 "valor_inss": conta.get("valor_inss"),
                                 "valor_pis": conta.get("valor_pis"),
                                 "valor_iss": conta.get("valor_iss"),
-                                "distribuicao": conta.get("distribuicao"),
-                                "info": conta.get("info")
+                                "distribuicao": tratar_json(conta.get("distribuicao")),
+                                "info": tratar_json(conta.get("info"))
                             }
                             todos_registros.append(registro)
                         
