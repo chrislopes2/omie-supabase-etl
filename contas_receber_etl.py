@@ -50,6 +50,16 @@ def converter_data(data_br):
     except:
         return None
 
+def tratar_json(obj):
+    if not obj:
+        return None
+    if isinstance(obj, str):
+        try:
+            return json.loads(obj)
+        except json.JSONDecodeError:
+            return None
+    return obj
+
 def puxar_contas_receber(empresa_config):
     pagina = 1
     tem_mais = True
@@ -83,7 +93,8 @@ def puxar_contas_receber(empresa_config):
                                 "valor_documento": conta.get("valor_documento"),
                                 "status_titulo": conta.get("status_titulo"),
                                 "codigo_categoria": conta.get("codigo_categoria"),
-                                "categorias": conta.get("categorias")
+                                "categorias": tratar_json(conta.get("categorias")),
+                                "distribuicao": tratar_json(conta.get("distribuicao"))
                             }
                             todos_registros.append(registro)
                         
