@@ -41,55 +41,74 @@ EMPRESAS = [
   { "empresa": "STUDIO VAREJO", "cnpj": "44.189.727/0001-34", "app_key": "2751878248119", "app_secret": "3a12157b1f95817bdf58e5e5e37ba994" }
 ]
 
+def tratar_json(obj):
+    if not obj:
+        return None
+    if isinstance(obj, str):
+        try:
+            return json.loads(obj)
+        except json.JSONDecodeError:
+            return None
+    return obj
+
 def puxar_clientes(empresa_config):
-    pagina = 1
-    tem_mais = True
     todos_registros = []
     url = "https://app.omie.com.br/api/v1/geral/clientes/"
     
-    while tem_mais:
-        body = {
-            "call": "ListarClientes",
-            "app_key": empresa_config["app_key"],
-            "app_secret": empresa_config["app_secret"],
-            "param": [{"pagina": pagina, "registros_por_pagina": 100, "apenas_importado_api": "N"}]
-        }
+    # 🚨 Correção: Fazendo duas passagens. Uma para Ativos (N) e outra para Inativos (S)
+    for inativo in ["N", "S"]:
+        print(f"    > Buscando Clientes Inativo='{inativo}'...")
+        pagina = 1
+        tem_mais = True
         
-        sucesso_na_pagina = False
-        for tentativa in range(3):
-            try:
-                response = requests.post(url, json=body, timeout=30)
-                if response.status_code == 200:
-                    data = response.json()
-                    if "clientes_cadastro" in data and len(data["clientes_cadastro"]) > 0:
-                        for cliente in data["clientes_cadastro"]:
-                            registro = {
-                                "codigo_cliente_omie": cliente.get("codigo_cliente_omie"),
-                                "empresa_nome": empresa_config["empresa"],
-                                "empresa_cnpj": empresa_config["cnpj"],
-                                "cnpj_cpf": cliente.get("cnpj_cpf"),
-                                "razao_social": cliente.get("razao_social"),
-                                "nome_fantasia": cliente.get("nome_fantasia")
-                            }
-                            todos_registros.append(registro)
-                        sucesso_na_pagina = True
-                        pagina += 1
-                        break
-                    else:
-                        tem_mais = False
-                        sucesso_na_pagina = True
-                        break
-                else:
-                    print(f"Tentativa {tentativa+1} falhou na página {pagina} com status {response.status_code}. Retentando em 5s...")
-                    time.sleep(5)
-            except Exception as e:
-                print(f"Tentativa {tentativa+1} falhou na página {pagina} com erro: {e}. Retentando em 5s...")
-                time.sleep(5)
-                
-        if not sucesso_na_pagina:
-            print(f"FALHA CRÍTICA: Não foi possível baixar a página {pagina} de clientes após 3 tentativas.")
-            return None
+        while tem_mais:
+            body = {
+                "call": "ListarClientes",
+                "app_key": empresa_config["app_key"],
+                "app_secret": empresa_config["app_secret"],
+                "param": [{
+                    "pagina": pagina, 
+                    "registros_por_pagina": 100, 
+                    "apenas_importado_api": "N",
+                    "clientesFiltro": {"inativo": inativo}
+                }]
+            }
             
+            sucesso_na_pagina = False
+            for tentativa in range(3):
+                try:
+                    response = requests.post(url, json=body, timeout=30)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if "clientes_cadastro" in data and len(data["clientes_cadastro"]) > 0:
+                            for cliente in data["clientes_cadastro"]:
+                                registro = {
+                                    "codigo_cliente_omie": cliente.get("codigo_cliente_omie"),
+                                    "empresa_nome": empresa_config["empresa"],
+                                    "empresa_cnpj": empresa_config["cnpj"],
+                                    "cnpj_cpf": cliente.get("cnpj_cpf"),
+                                    "razao_social": cliente.get("razao_social"),
+                                    "nome_fantasia": cliente.get("nome_fantasia")
+                                }
+                                todos_registros.append(registro)
+                            sucesso_na_pagina = True
+                            pagina += 1
+                            break
+                        else:
+                            tem_mais = False
+                            sucesso_na_pagina = True
+                            break
+                    else:
+                        print(f"Tentativa {tentativa+1} falhou na página {pagina} (Inativo: {inativo}) com status {response.status_code}. Retentando em 5s...")
+                        time.sleep(5)
+                except Exception as e:
+                    print(f"Tentativa {tentativa+1} falhou na página {pagina} (Inativo: {inativo}) com erro: {e}. Retentando em 5s...")
+                    time.sleep(5)
+                    
+            if not sucesso_na_pagina:
+                print(f"FALHA CRÍTICA: Não foi possível baixar a página {pagina} de clientes após 3 tentativas.")
+                return None
+                
     return todos_registros
 
 
@@ -186,9 +205,9 @@ def puxar_categorias(empresa_config):
                                 "tag_conta_contabil": cat.get("tag_conta_contabil"),
                                 "natureza": cat.get("natureza"),
                                 "tipo_categoria": cat.get("tipo_categoria"),
-                                "dados_dre": cat.get("dadosDRE"),
+                                "dados_dre": tratar_json(cat.get("dadosDRE")),
                                 "codigo_valores_unidades": cat.get("codigo_valores_unidades", None),
-                                "bandeiras": cat.get("bandeiras", None)
+                                "bandeiras": tratar_json(cat.get("bandeiras", None))
                             }
                             todos_registros.append(registro)
                         sucesso_na_pagina = True
@@ -221,8 +240,6 @@ def rodar_rotina():
         "Content-Type": "application/json",
         "Prefer": "return=minimal, resolution=merge-duplicates"
     }
-
-    # O DELETE GLOBAL FOI REMOVIDO DAQUI POR SEGURANÇA!
 
     for empresa in EMPRESAS:
         print(f"\nExtraindo dados de: {empresa['empresa']}...")

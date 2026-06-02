@@ -24,6 +24,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           
+      - name: Executando Script Incremental de Clientes
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python clientes_incremental.py
+
       - name: Executando Script Incremental de Contas a Pagar
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
