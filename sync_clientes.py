@@ -50,6 +50,7 @@ def puxar_clientes(empresa_config):
         print(f"    > Buscando Clientes Inativo='{inativo}'...")
         pagina = 1
         tem_mais = True
+        total_paginas_conhecido = 999999
         
         while tem_mais:
             body = {
@@ -83,10 +84,12 @@ def puxar_clientes(empresa_config):
                                 todos_registros.append(registro)
                             sucesso_na_pagina = True
                             pagina += 1
+                            total_paginas_conhecido = data.get('total_de_paginas', total_paginas_conhecido)
                             break
                         else:
                             tem_mais = False
                             sucesso_na_pagina = True
+                            total_paginas_conhecido = data.get('total_de_paginas', total_paginas_conhecido)
                             break
                     else:
                         print(f"Tentativa {tentativa+1} falhou na página {pagina} (Inativo: {inativo}) com status {response.status_code}. Retentando em 5s...")
@@ -96,9 +99,12 @@ def puxar_clientes(empresa_config):
                     time.sleep(5)
                     
             if not sucesso_na_pagina:
-                print(f"AVISO: Não foi possível baixar a página {pagina}. Pulando esta página corrompida da Omie e continuando para a próxima...")
-                # Não damos break, continua para a próxima página incrementando manualmente
-                pagina += 1
+                if pagina >= total_paginas_conhecido:
+                    print(f"AVISO: Falha na página {pagina}, mas como o limite conhecido era {total_paginas_conhecido}, assumimos o fim da lista.")
+                    tem_mais = False
+                else:
+                    print(f"AVISO: Não foi possível baixar a página {pagina}. Pulando esta página corrompida da Omie e continuando para a próxima...")
+                    pagina += 1
                 
     return todos_registros
 
