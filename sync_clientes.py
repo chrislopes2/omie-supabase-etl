@@ -65,7 +65,7 @@ def puxar_clientes(empresa_config):
             }
             
             sucesso_na_pagina = False
-            for tentativa in range(5): # Segurança extra com 5 tentativas
+            for tentativa in range(10): # Segurança extra com 10 tentativas
                 try:
                     response = requests.post(url, json=body, timeout=30)
                     if response.status_code == 200:
@@ -96,8 +96,9 @@ def puxar_clientes(empresa_config):
                     time.sleep(5)
                     
             if not sucesso_na_pagina:
-                print(f"AVISO: Não foi possível baixar a página {pagina}. A API da Omie falhou no fim da lista. Salvando os clientes encontrados até agora.")
-                break
+                print(f"AVISO: Não foi possível baixar a página {pagina}. Pulando esta página corrompida da Omie e continuando para a próxima...")
+                # Não damos break, continua para a próxima página incrementando manualmente
+                pagina += 1
                 
     return todos_registros
 
@@ -117,7 +118,7 @@ def run_sync_clientes():
             print(f"   ✓ {len(clientes)} clientes obtidos da Omie. Enviando ao Supabase...")
             for i in range(0, len(clientes), 100):
                 lote = clientes[i:i+100]
-                for tentativa in range(5):
+                for tentativa in range(10):
                     try:
                         response = supabase.table('clientes_grupo').upsert(
                             lote, on_conflict="codigo_cliente_omie, empresa_cnpj"
