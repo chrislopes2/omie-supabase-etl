@@ -245,22 +245,7 @@ def rodar_rotina():
         print(f"\nExtraindo dados de: {empresa['empresa']}...")
         
         # 1. CLIENTES (Removido - Sincronizado isoladamente via sync_clientes.py)
-        # 2. DEPARTAMENTOS
-        departamentos = puxar_departamentos(empresa)
-        if departamentos is None:
-            print(f"⚠️ Pulo de segurança: Departamentos da empresa {empresa['empresa']} não serão apagados/inseridos.")
-        elif departamentos:
-            try:
-                requests.delete(f"{SUPABASE_URL}/rest/v1/departamentos_omie", headers=headers_supabase, params={"empresa_cnpj": f"eq.{empresa['cnpj']}"})
-                tamanho_lote = 500
-                for i in range(0, len(departamentos), tamanho_lote):
-                    lote = departamentos[i:i + tamanho_lote]
-                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/departamentos_omie", json=lote, headers=headers_supabase)
-                    if resp.status_code not in (200, 201):
-                         print(f"❌ Erro na API do Supabase (Departamentos): {resp.text}")
-                print(f"✅ Inseridos {len(departamentos)} Departamentos para {empresa['empresa']}")
-            except Exception as e:
-                print(f"❌ Erro ao enviar Departamentos da empresa {empresa['empresa']}: {e}")
+        # 2. DEPARTAMENTOS (Removido - Sincronizado isoladamente via sync_departamentos.py)
 
         # 3. CATEGORIAS
         categorias = puxar_categorias(empresa)
