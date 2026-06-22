@@ -96,8 +96,8 @@ def puxar_clientes(empresa_config):
                     time.sleep(5)
                     
             if not sucesso_na_pagina:
-                print(f"FALHA CRÍTICA: Não foi possível baixar a página {pagina} de clientes após 5 tentativas.")
-                return None
+                print(f"AVISO: Não foi possível baixar a página {pagina}. A API da Omie falhou no fim da lista. Salvando os clientes encontrados até agora.")
+                break
                 
     return todos_registros
 
