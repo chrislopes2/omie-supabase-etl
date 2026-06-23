@@ -84,7 +84,7 @@ def puxar_clientes_incrementais(empresa_config, data_corte):
                 "app_secret": empresa_config["app_secret"],
                 "param": [{
                     "pagina": pagina, 
-                    "registros_por_pagina": 100, 
+                    "registros_por_pagina": 500, 
                     "apenas_importado_api": "N",
                     "clientesFiltro": f["clientesFiltro"]
                 }]
