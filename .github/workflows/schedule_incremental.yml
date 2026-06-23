@@ -9,7 +9,36 @@ on:
 jobs:
   run-etl-incremental:
     runs-on: ubuntu-latest
-    
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        empresa:
+          - "ALIANÇA LEGAL"
+          - "AUDIT TECNOLOGIA"
+          - "BRAGA E MONTEIRO"
+          - "E-FISCAL OPERACIONAL"
+          - "FERREIRA & MONTEIRO"
+          - "GS EDUCAÇÃO"
+          - "SF CONSULTORIA"
+          - "SPACE W"
+          - "STUDIO ADMINISTRAÇÃO"
+          - "STUDIO AGRONEGÓCIOS"
+          - "STUDIO BANK"
+          - "STUDIO BROKERS"
+          - "STUDIO CONTABILIDADE LTDA"
+          - "STUDIO ENERGY"
+          - "STUDIO FACTORING"
+          - "STUDIO FISCAL"
+          - "STUDIO GROWTH"
+          - "STUDIO OPERACIONAL"
+          - "STUDIO OPERACIONAL 01"
+          - "STUDIO PAR"
+          - "STUDIO FAMILY"
+          - "STUDIO SBS STORE"
+          - "STUDIO STORE"
+          - "STUDIO VAREJO"
+          
     steps:
       - name: Checando o código do repositório
         uses: actions/checkout@v3
@@ -24,14 +53,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           
-      - name: Executando Script Incremental de Clientes
+      - name: "Clientes Incremental: ${{ matrix.empresa }}"
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python clientes_incremental.py
+        run: python clientes_incremental.py "${{ matrix.empresa }}"
 
-      - name: Executando Script Incremental de Contas a Pagar
+      - name: "Contas a Pagar Incremental: ${{ matrix.empresa }}"
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python contas_pagar_incremental.py
+        run: python contas_pagar_incremental.py "${{ matrix.empresa }}"

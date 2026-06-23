@@ -1,6 +1,7 @@
 import os
 import requests
 import time
+import sys
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
@@ -15,7 +16,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-EMPRESAS = [
+TODAS_EMPRESAS = [
   { "empresa": "ALIANÇA LEGAL", "cnpj": "12.340.921/0001-82", "app_key": "2901976098021", "app_secret": "e58a09c75425faa713a8e582bcaf29d7" },
   { "empresa": "AUDIT TECNOLOGIA", "cnpj": "44.158.057/0001-99", "app_key": "2790372542958", "app_secret": "e5b71f2190f482fb37aefdf793a124c1" },
   { "empresa": "BRAGA E MONTEIRO", "cnpj": "01.501.108/0001-20", "app_key": "2900573099424", "app_secret": "56b9040a3bc0ebf1af9f393faa048e0d" },
@@ -42,8 +43,80 @@ EMPRESAS = [
   { "empresa": "STUDIO VAREJO", "cnpj": "44.189.727/0001-34", "app_key": "2751878248119", "app_secret": "3a12157b1f95817bdf58e5e5e37ba994" }
 ]
 
+def tentar_pagina(url, empresa_config, pagina, tamanho, filtros_extra=None, max_tentativas=10):
+    """Tenta baixar uma página específica da Omie com retries."""
+    param = {"pagina": pagina, "registros_por_pagina": tamanho, "apenas_importado_api": "N"}
+    if filtros_extra:
+        param.update(filtros_extra)
+    
+    body = {
+        "call": "ListarClientes",
+        "app_key": empresa_config["app_key"],
+        "app_secret": empresa_config["app_secret"],
+        "param": [param]
+    }
+    for tentativa in range(max_tentativas):
+        try:
+            response = requests.post(url, json=body, timeout=30)
+            if response.status_code == 200:
+                data = response.json()
+                total_paginas = data.get("total_de_paginas", 1)
+                registros = []
+                if "clientes_cadastro" in data and len(data["clientes_cadastro"]) > 0:
+                    registros = data["clientes_cadastro"]
+                return True, registros, total_paginas
+            else:
+                print(f"    Tentativa {tentativa+1} falhou na página {pagina} (tamanho {tamanho}) com status {response.status_code}. Retentando em 5s...")
+                time.sleep(5)
+        except Exception as e:
+            print(f"    Tentativa {tentativa+1} falhou na página {pagina} (tamanho {tamanho}) com erro: {e}. Retentando em 5s...")
+            time.sleep(5)
+    return False, [], 0
+
+def zoom_progressivo(url, empresa_config, pagina_falha, tamanho_original, filtros_extra=None):
+    """Quando uma página falha, divide em lotes menores para isolar o registro corrompido e resgatar os bons."""
+    registros_recuperados = []
+    tamanho_zoom1 = 10
+    fator = tamanho_original // tamanho_zoom1
+    pag_inicio = (pagina_falha - 1) * fator + 1
+    pag_fim = pagina_falha * fator
+    
+    print(f"  🔬 ZOOM NÍVEL 1: Tentando recuperar página {pagina_falha} como sub-páginas {pag_inicio}-{pag_fim} (de {tamanho_zoom1} registros)...")
+    
+    for sub_pag in range(pag_inicio, pag_fim + 1):
+        sucesso, registros, _ = tentar_pagina(url, empresa_config, sub_pag, tamanho_zoom1, filtros_extra, max_tentativas=5)
+        if sucesso:
+            registros_recuperados.extend(registros)
+            print(f"    ✅ Sub-página {sub_pag}: {len(registros)} clientes recuperados")
+        else:
+            tamanho_zoom2 = 1
+            fator2 = tamanho_zoom1 // tamanho_zoom2
+            micro_inicio = (sub_pag - 1) * fator2 + 1
+            micro_fim = sub_pag * fator2
+            
+            print(f"    🔬 ZOOM NÍVEL 2: Tentando sub-página {sub_pag} como micro-páginas {micro_inicio}-{micro_fim} (1 cliente cada)...")
+            
+            for micro_pag in range(micro_inicio, micro_fim + 1):
+                ok, regs, _ = tentar_pagina(url, empresa_config, micro_pag, tamanho_zoom2, filtros_extra, max_tentativas=3)
+                if ok:
+                    registros_recuperados.extend(regs)
+                else:
+                    print(f"      ❌ Micro-página {micro_pag}: cliente irrecuperável (defeito na Omie)")
+    return registros_recuperados
+
+def formatar_registro(cliente, empresa_config):
+    return {
+        "codigo_cliente_omie": cliente.get("codigo_cliente_omie"),
+        "empresa_nome": empresa_config["empresa"],
+        "empresa_cnpj": empresa_config["cnpj"],
+        "cnpj_cpf": cliente.get("cnpj_cpf"),
+        "razao_social": cliente.get("razao_social"),
+        "nome_fantasia": cliente.get("nome_fantasia")
+    }
+
 def puxar_clientes(empresa_config):
-    todos_registros = []
+    TAMANHO_PAGINA = 50
+    todos_registros_brutos = []
     url = "https://app.omie.com.br/api/v1/geral/clientes/"
     
     for inativo in ["N", "S"]:
@@ -51,68 +124,53 @@ def puxar_clientes(empresa_config):
         pagina = 1
         tem_mais = True
         total_paginas_conhecido = 999999
+        filtros_extra = {"clientesFiltro": {"inativo": inativo}}
         
         while tem_mais:
-            body = {
-                "call": "ListarClientes",
-                "app_key": empresa_config["app_key"],
-                "app_secret": empresa_config["app_secret"],
-                "param": [{
-                    "pagina": pagina, 
-                    "registros_por_pagina": 50, 
-                    "apenas_importado_api": "N",
-                    "clientesFiltro": {"inativo": inativo}
-                }]
-            }
+            sucesso, registros_pagina, total_paginas = tentar_pagina(url, empresa_config, pagina, TAMANHO_PAGINA, filtros_extra)
             
-            sucesso_na_pagina = False
-            for tentativa in range(10): # Segurança extra com 10 tentativas
-                try:
-                    response = requests.post(url, json=body, timeout=30)
-                    if response.status_code == 200:
-                        data = response.json()
-                        if "clientes_cadastro" in data and len(data["clientes_cadastro"]) > 0:
-                            for cliente in data["clientes_cadastro"]:
-                                registro = {
-                                    "codigo_cliente_omie": cliente.get("codigo_cliente_omie"),
-                                    "empresa_nome": empresa_config["empresa"],
-                                    "empresa_cnpj": empresa_config["cnpj"],
-                                    "cnpj_cpf": cliente.get("cnpj_cpf"),
-                                    "razao_social": cliente.get("razao_social"),
-                                    "nome_fantasia": cliente.get("nome_fantasia")
-                                }
-                                todos_registros.append(registro)
-                            sucesso_na_pagina = True
-                            pagina += 1
-                            total_paginas_conhecido = data.get('total_de_paginas', total_paginas_conhecido)
-                            break
-                        else:
-                            tem_mais = False
-                            sucesso_na_pagina = True
-                            total_paginas_conhecido = data.get('total_de_paginas', total_paginas_conhecido)
-                            break
-                    else:
-                        print(f"Tentativa {tentativa+1} falhou na página {pagina} (Inativo: {inativo}) com status {response.status_code}. Retentando em 5s...")
-                        time.sleep(5)
-                except Exception as e:
-                    print(f"Tentativa {tentativa+1} falhou na página {pagina} (Inativo: {inativo}) com erro: {e}. Retentando em 5s...")
-                    time.sleep(5)
-                    
-            if not sucesso_na_pagina:
+            if sucesso:
+                total_paginas_conhecido = total_paginas
+                todos_registros_brutos.extend(registros_pagina)
+                
                 if pagina >= total_paginas_conhecido:
-                    print(f"AVISO: Falha na página {pagina}, mas como o limite conhecido era {total_paginas_conhecido}, assumimos o fim da lista.")
                     tem_mais = False
                 else:
-                    print(f"AVISO: Não foi possível baixar a página {pagina}. Pulando esta página corrompida da Omie e continuando para a próxima...")
+                    pagina += 1
+            else:
+                if pagina >= total_paginas_conhecido:
+                    print(f"  AVISO: Falha na página {pagina}, mas já atingimos o limite ({total_paginas_conhecido}). Encerrando.")
+                    tem_mais = False
+                else:
+                    print(f"  ⚠️ Página {pagina} falhou! Ativando Zoom Progressivo...")
+                    registros_zoom = zoom_progressivo(url, empresa_config, pagina, TAMANHO_PAGINA, filtros_extra)
+                    todos_registros_brutos.extend(registros_zoom)
+                    print(f"  🔬 Zoom recuperou {len(registros_zoom)} de {TAMANHO_PAGINA} clientes da página {pagina}")
                     pagina += 1
                 
+    todos_registros = []
+    chaves_processadas = set()
+    for cliente in todos_registros_brutos:
+        pk = cliente.get("codigo_cliente_omie")
+        if pk in chaves_processadas:
+            continue
+        chaves_processadas.add(pk)
+        todos_registros.append(formatar_registro(cliente, empresa_config))
+        
     return todos_registros
 
 
-def run_sync_clientes():
+def run_sync_clientes(empresa_alvo=None):
     print("=== INICIANDO SINCRONIZAÇÃO DE CLIENTES ===")
     
-    for empresa in EMPRESAS:
+    empresas_para_rodar = TODAS_EMPRESAS
+    if empresa_alvo:
+        empresas_para_rodar = [e for e in TODAS_EMPRESAS if e["empresa"] == empresa_alvo]
+        if not empresas_para_rodar:
+            print(f"ERRO: Empresa '{empresa_alvo}' não encontrada na lista.")
+            return
+
+    for empresa in empresas_para_rodar:
         print(f"\nSincronizando clientes da empresa: {empresa['empresa']}")
         clientes = puxar_clientes(empresa)
         
@@ -124,7 +182,7 @@ def run_sync_clientes():
             print(f"   ✓ {len(clientes)} clientes obtidos da Omie. Enviando ao Supabase...")
             for i in range(0, len(clientes), 100):
                 lote = clientes[i:i+100]
-                for tentativa in range(10):
+                for tentativa in range(5):
                     try:
                         response = supabase.table('clientes_grupo').upsert(
                             lote, on_conflict="codigo_cliente_omie, empresa_cnpj"
@@ -141,4 +199,8 @@ def run_sync_clientes():
 
 
 if __name__ == "__main__":
-    run_sync_clientes()
+    if len(sys.argv) > 1:
+        empresa_cli = sys.argv[1]
+        run_sync_clientes(empresa_cli)
+    else:
+        run_sync_clientes()
