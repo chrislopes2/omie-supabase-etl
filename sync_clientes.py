@@ -59,7 +59,7 @@ def puxar_clientes(empresa_config):
                 "app_secret": empresa_config["app_secret"],
                 "param": [{
                     "pagina": pagina, 
-                    "registros_por_pagina": 500, 
+                    "registros_por_pagina": 50, 
                     "apenas_importado_api": "N",
                     "clientesFiltro": {"inativo": inativo}
                 }]
