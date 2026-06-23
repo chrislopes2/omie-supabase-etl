@@ -69,6 +69,7 @@ def tratar_json(obj):
 def puxar_contas_pagar(empresa_config):
     pagina = 1
     tem_mais = True
+    total_paginas_conhecido = 999999
     todos_registros = []
     url = "https://app.omie.com.br/api/v1/financas/contapagar/"
     
@@ -81,7 +82,7 @@ def puxar_contas_pagar(empresa_config):
         }
         
         sucesso_na_pagina = False
-        for tentativa in range(3):
+        for tentativa in range(10):
             try:
                 response = requests.post(url, json=body, timeout=30)
                 if response.status_code == 200:
@@ -142,10 +143,12 @@ def puxar_contas_pagar(empresa_config):
                         
                         sucesso_na_pagina = True
                         pagina += 1
+                        total_paginas_conhecido = data.get('total_de_paginas', total_paginas_conhecido)
                         break # Sai do retry
                     else:
                         tem_mais = False # Fim das páginas
                         sucesso_na_pagina = True
+                        total_paginas_conhecido = data.get('total_de_paginas', total_paginas_conhecido)
                         break
                 else:
                     print(f"Tentativa {tentativa+1} falhou na página {pagina} com status {response.status_code}. Retentando em 5s...")
@@ -155,8 +158,12 @@ def puxar_contas_pagar(empresa_config):
                 time.sleep(5)
                 
         if not sucesso_na_pagina:
-            print(f"FALHA CRÍTICA: Não foi possível baixar a página {pagina} da Omie após 3 tentativas.")
-            return None # Sinaliza erro crítico na extração
+            if pagina >= total_paginas_conhecido:
+                print(f"AVISO: Falha na página {pagina}, mas como o limite conhecido era {total_paginas_conhecido}, assumimos o fim da lista.")
+                tem_mais = False
+            else:
+                print(f"AVISO: Não foi possível baixar a página {pagina}. Pulando esta página corrompida da Omie e continuando para a próxima...")
+                pagina += 1
             
     return todos_registros
 

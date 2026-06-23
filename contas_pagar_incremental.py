@@ -62,7 +62,7 @@ def tratar_json(obj):
     return obj
 
 def extrair_pagina_omie(url, body):
-    for tentativa in range(3):
+    for tentativa in range(10):
         try:
             response = requests.post(url, json=body, timeout=30)
             if response.status_code == 200:
@@ -71,14 +71,14 @@ def extrair_pagina_omie(url, body):
                 if "conta_pagar_cadastro" in data and len(data["conta_pagar_cadastro"]) > 0:
                     for conta in data["conta_pagar_cadastro"]:
                         registros_pagina.append(conta)
-                return True, registros_pagina, (data.get("pagina", 1) < data.get("total_de_paginas", 1))
+                return True, registros_pagina, (data.get("pagina", 1) < data.get("total_de_paginas", 1)), data.get("total_de_paginas", 999999)
             else:
                 print(f"Tentativa {tentativa+1} falhou com status {response.status_code}. Retentando em 5s...")
                 time.sleep(5)
         except Exception as e:
             print(f"Tentativa {tentativa+1} falhou com erro: {e}. Retentando em 5s...")
             time.sleep(5)
-    return False, [], False
+    return False, [], False, 999999
 
 def puxar_contas_pagar_incrementais(empresa_config, data_corte):
     todos_registros_brutos = []
@@ -95,6 +95,7 @@ def puxar_contas_pagar_incrementais(empresa_config, data_corte):
         print(f"  > Buscando {f['nome_filtro']} a partir de {data_corte}...")
         pagina = 1
         tem_mais = True
+        total_paginas_conhecido = 999999
         
         while tem_mais:
             body = {
@@ -111,14 +112,20 @@ def puxar_contas_pagar_incrementais(empresa_config, data_corte):
                 }]
             }
             
-            sucesso, registros_pagina, tem_mais = extrair_pagina_omie(url, body)
+            sucesso, registros_pagina, novo_tem_mais, novo_total = extrair_pagina_omie(url, body)
             
-            if not sucesso:
-                print(f"  FALHA CRÍTICA na página {pagina} de {f['nome_filtro']}.")
-                return None
-                
-            todos_registros_brutos.extend(registros_pagina)
-            pagina += 1
+            if sucesso:
+                total_paginas_conhecido = novo_total
+                tem_mais = novo_tem_mais
+                todos_registros_brutos.extend(registros_pagina)
+                pagina += 1
+            else:
+                if pagina >= total_paginas_conhecido:
+                    print(f"AVISO: Falha na página {pagina}, mas como o limite conhecido era {total_paginas_conhecido}, assumimos o fim da lista.")
+                    tem_mais = False
+                else:
+                    print(f"AVISO: Não foi possível baixar a página {pagina}. Pulando esta página corrompida da Omie e continuando para a próxima...")
+                    pagina += 1
 
     # Formatando e limpando duplicatas baseadas na chave primária (se o mesmo título veio na inclusão e alteração)
     todos_registros = []
