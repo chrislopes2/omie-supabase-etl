@@ -133,7 +133,7 @@ def puxar_conta_corrente(empresa_config):
     return todos_registros
 
 def rodar_rotina_cc():
-    print("Iniciando rotina de Conta Corrente (Multi-Tenant Omie -> Supabase)...")
+    print("Iniciando rotina de Conta Corrente (Multi-Tenant Omie -> Supabase) no modo Upsert...")
     
     headers_supabase = {
         "apikey": SUPABASE_KEY,
@@ -150,20 +150,11 @@ def rodar_rotina_cc():
         
         if lancamentos_cc is None:
             print(f"⚠️ ERRO DETECTADO NA EXTRAÇÃO DA {empresa['empresa']}.")
-            print("PULANDO deleção e inserção para preservar os dados antigos no banco de dados!")
             continue # Pula a deleção e inserção desta empresa
             
         if lancamentos_cc:
             try:
-                # 1. Apaga apenas os dados DAQUELA EMPRESA
-                print(f"Limpando base de dados antiga de conta_corrente da empresa {empresa['empresa']}...")
-                requests.delete(
-                    f"{SUPABASE_URL}/rest/v1/conta_corrente", 
-                    headers=headers_supabase, 
-                    params={"empresa_cnpj": f"eq.{empresa['cnpj']}"}
-                )
-                
-                # 2. Insere os novos dados daquela empresa
+                print(f"Enviando novos dados de conta_corrente da empresa {empresa['empresa']} em modo UPSERT...")
                 tamanho_lote = 500
                 for i in range(0, len(lancamentos_cc), tamanho_lote):
                     lote = lancamentos_cc[i:i + tamanho_lote]

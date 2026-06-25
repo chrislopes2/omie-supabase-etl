@@ -165,15 +165,7 @@ def rodar_rotina_mf():
             
         if movimentos:
             try:
-                # 1. Apaga apenas os dados DAQUELA EMPRESA
-                print(f"Limpando base de dados antiga de movimentos_financeiros da empresa {empresa['empresa']}...")
-                requests.delete(
-                    f"{SUPABASE_URL}/rest/v1/movimentos_financeiros", 
-                    headers=headers_supabase, 
-                    params={"empresa_cnpj": f"eq.{empresa['cnpj']}"}
-                )
-                
-                # 2. Insere os novos dados daquela empresa
+                print(f"Enviando novos dados de movimentos_financeiros da empresa {empresa['empresa']} em modo UPSERT...")
                 tamanho_lote = 500
                 for i in range(0, len(movimentos), tamanho_lote):
                     lote = movimentos[i:i + tamanho_lote]
