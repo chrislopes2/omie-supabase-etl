@@ -25,4 +25,4 @@ jobs:
       env:
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-      run: python conta_corrente_etl.py
+      run: python -u conta_corrente_rapida_etl.py
