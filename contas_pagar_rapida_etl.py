@@ -6,9 +6,9 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL").rstrip('/')
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # Focar apenas na empresa STUDIO OPERACIONAL
-contas_pagar_etl.EMPRESAS = [
-    { "empresa": "STUDIO OPERACIONAL", "cnpj": "23.448.109/0001-91", "app_key": "2904360428970", "app_secret": "fbc75836f2a73b196223b5b589306c47" }
-]
+# contas_pagar_etl.EMPRESAS = [
+#     { "empresa": "STUDIO OPERACIONAL", "cnpj": "23.448.109/0001-91", "app_key": "2904360428970", "app_secret": "fbc75836f2a73b196223b5b589306c47" }
+# ]
 
 # LIMPAR a tabela contas_pagar ANTES de inserir (por empresa)
 headers = {
