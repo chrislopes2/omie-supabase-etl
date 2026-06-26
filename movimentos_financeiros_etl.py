@@ -116,9 +116,7 @@ def puxar_movimentos_financeiros(empresa_config):
                                 "valor_csll": det.get("nValorCSLL") or 0.0,
                                 "valor_ir": det.get("nValorIR") or 0.0,
                                 "valor_iss": det.get("nValorISS") or 0.0,
-                                "valor_inss": det.get("nValorINSS") or 0.0,
-                                "departamentos": mov.get("departamentos") or det.get("departamentos"),
-                                "categorias": mov.get("categorias") or det.get("categorias")
+                                "valor_inss": det.get("nValorINSS") or 0.0
                             }
                             todos_registros.append(registro)
                         
