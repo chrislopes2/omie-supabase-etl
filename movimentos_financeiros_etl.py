@@ -75,9 +75,7 @@ def puxar_movimentos_financeiros(empresa_config):
                             det = mov.get("detalhes", {})
                             res = mov.get("resumo", {})
                             
-                            # Filtrar apenas natureza "Receber" (R)
-                            if det.get("cNatureza") != "R":
-                                continue
+
                                 
                             registro = {
                                 "id_movimento": det.get("nCodTitulo"),
@@ -101,22 +99,10 @@ def puxar_movimentos_financeiros(empresa_config):
                                 "data_previsao": converter_data(det.get("dDtPrevisao")),
                                 "data_pagamento": converter_data(det.get("dDtPagamento")),
                                 "data_registro": converter_data(det.get("dDtRegistro")),
-                                "cstatus": det.get("cStatus"),
-                                "status": det.get("cStatus"),
-                                "liquidado": res.get("cLiquidado"),
                                 "valor_titulo": det.get("nValorTitulo") or 0.0,
                                 "valor_pago": res.get("nValPago") or 0.0,
                                 "valor_liquido": res.get("nValLiquido") or 0.0,
-                                "valor_aberto": res.get("nValAberto") or 0.0,
-                                "valor_juros": det.get("nJuros") or res.get("nJuros") or 0.0,
-                                "valor_multa": det.get("nMulta") or res.get("nMulta") or 0.0,
-                                "valor_desconto": res.get("nDesconto") or det.get("nDesconto") or 0.0,
-                                "valor_pis": det.get("nValorPIS") or 0.0,
-                                "valor_cofins": det.get("nValorCOFINS") or 0.0,
-                                "valor_csll": det.get("nValorCSLL") or 0.0,
-                                "valor_ir": det.get("nValorIR") or 0.0,
-                                "valor_iss": det.get("nValorISS") or 0.0,
-                                "valor_inss": det.get("nValorINSS") or 0.0
+                                "valor_aberto": res.get("nValAberto") or 0.0
                             }
                             todos_registros.append(registro)
                         
