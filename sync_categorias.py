@@ -61,20 +61,26 @@ def tentar_pagina(url, empresa_config, pagina, tamanho, max_tentativas=10):
     for tentativa in range(max_tentativas):
         try:
             response = requests.post(url, json=body, timeout=30)
+            
+            # BLOQUEIO DE CHAVE INVÁLIDA
+            if "chave de acesso est" in response.text or "aplicativo est" in response.text or response.status_code == 500:
+                print(f"    ❌ ERRO CRÍTICO DA OMIE: Chave da empresa {empresa_config['empresa']} inválida ou suspensa. Pulando empresa.")
+                return False, [], 0, True # O 4º parametro avisa que é bloqueio definitivo
+                
             if response.status_code == 200:
                 data = response.json()
                 total_paginas = data.get("total_de_paginas", 1)
                 registros = []
                 if "categoria_cadastro" in data and len(data["categoria_cadastro"]) > 0:
                     registros = data["categoria_cadastro"]
-                return True, registros, total_paginas
+                return True, registros, total_paginas, False
             else:
                 print(f"    Tentativa {tentativa+1} falhou na página {pagina} (tamanho {tamanho}) com status {response.status_code}. Retentando em 5s...")
                 time.sleep(5)
         except Exception as e:
             print(f"    Tentativa {tentativa+1} falhou na página {pagina} (tamanho {tamanho}) com erro: {e}. Retentando em 5s...")
             time.sleep(5)
-    return False, [], 0
+    return False, [], 0, False
 
 def zoom_progressivo(url, empresa_config, pagina_falha, tamanho_original):
     registros_recuperados = []
@@ -86,7 +92,9 @@ def zoom_progressivo(url, empresa_config, pagina_falha, tamanho_original):
     print(f"  🔬 ZOOM NÍVEL 1: Tentando recuperar página {pagina_falha} como sub-páginas {pag_inicio}-{pag_fim} (de {tamanho_zoom1} registros)...")
     
     for sub_pag in range(pag_inicio, pag_fim + 1):
-        sucesso, registros, _ = tentar_pagina(url, empresa_config, sub_pag, tamanho_zoom1, max_tentativas=5)
+        sucesso, registros, _, bloqueio = tentar_pagina(url, empresa_config, sub_pag, tamanho_zoom1, max_tentativas=5)
+        if bloqueio:
+            break
         if sucesso:
             registros_recuperados.extend(registros)
             print(f"    ✅ Sub-página {sub_pag}: {len(registros)} categorias recuperadas")
@@ -99,7 +107,7 @@ def zoom_progressivo(url, empresa_config, pagina_falha, tamanho_original):
             print(f"    🔬 ZOOM NÍVEL 2: Tentando sub-página {sub_pag} como micro-páginas {micro_inicio}-{micro_fim} (1 cat cada)...")
             
             for micro_pag in range(micro_inicio, micro_fim + 1):
-                ok, regs, _ = tentar_pagina(url, empresa_config, micro_pag, tamanho_zoom2, max_tentativas=3)
+                ok, regs, _, _ = tentar_pagina(url, empresa_config, micro_pag, tamanho_zoom2, max_tentativas=3)
                 if ok:
                     registros_recuperados.extend(regs)
                 else:
@@ -115,8 +123,11 @@ def puxar_categorias_isolado(empresa_config):
     url = "https://app.omie.com.br/api/v1/geral/categorias/"
     
     while tem_mais:
-        sucesso, registros_pagina, total_paginas = tentar_pagina(url, empresa_config, pagina, TAMANHO_PAGINA)
+        sucesso, registros_pagina, total_paginas, bloqueio_definitivo = tentar_pagina(url, empresa_config, pagina, TAMANHO_PAGINA)
         
+        if bloqueio_definitivo:
+            return [] # Corta imediatamente e devolve nada
+            
         if sucesso:
             total_paginas_conhecido = total_paginas
             todos_registros_brutos.extend(registros_pagina)
@@ -161,8 +172,8 @@ def rodar_rotina_categorias():
         print(f"\\n--- Extraindo de {emp['empresa']} ---")
         try:
             regs = puxar_categorias_isolado(emp)
-            print(f"  Total resgatado: {len(regs)}")
             if regs:
+                print(f"  Total resgatado: {len(regs)}")
                 deletar_categorias_empresa(emp["cnpj"])
                 
                 LOTE = 500
