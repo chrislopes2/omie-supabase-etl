@@ -17,30 +17,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 TODAS_EMPRESAS = [
-    {"empresa": "ALIANÇA LEGAL", "app_key": "3834645228678", "app_secret": "3127dd0e7371ed5ce40ef0f0c05cd9c4", "cnpj": "40316410000100"},
-    {"empresa": "AUDIT TECNOLOGIA", "app_key": "3834648118029", "app_secret": "44dfa7593c1356f913d80b435f3752e2", "cnpj": "40321267000107"},
-    {"empresa": "BRAGA E MONTEIRO", "app_key": "1298453472099", "app_secret": "fc3bb203e012e8b2ed3b934ec710b719", "cnpj": "08031102000185"},
-    {"empresa": "E-FISCAL OPERACIONAL", "app_key": "3834642953259", "app_secret": "119fcdbf0954930bfcfddf946d849b2c", "cnpj": "40212048000115"},
-    {"empresa": "FERREIRA & MONTEIRO", "app_key": "1298453471018", "app_secret": "6d98c5a2c4e8574345511e63a1523a65", "cnpj": "07450371000155"},
-    {"empresa": "GS EDUCAÇÃO", "app_key": "3834645371694", "app_secret": "046d4c06f3630fbc982a5d2c0b4847da", "cnpj": "40306385000109"},
-    {"empresa": "SF CONSULTORIA", "app_key": "3834642646399", "app_secret": "281f9bba97ab74cd78dd35a8220023ee", "cnpj": "40211756000130"},
-    {"empresa": "SPACE W", "app_key": "3834642646294", "app_secret": "00a5d4a4f8da24bb6b2e1b8c00c73295", "cnpj": "40212133000183"},
-    {"empresa": "STUDIO ADMINISTRAÇÃO", "app_key": "3834642953331", "app_secret": "ba47913cf0bafb4c4897082da2b7a4de", "cnpj": "40211933000113"},
-    {"empresa": "STUDIO AGRONEGÓCIOS", "app_key": "3834645228807", "app_secret": "1df5d4a2503d2e96030cff0391d8bbcc", "cnpj": "40306466000109"},
-    {"empresa": "STUDIO BANK", "app_key": "3834642953112", "app_secret": "942f7035677cece9e585e135cfecb457", "cnpj": "40212260000182"},
-    {"empresa": "STUDIO BROKERS", "app_key": "3834645228695", "app_secret": "664c3c1db92c3a5ef52467d30d97fffa", "cnpj": "40306429000109"},
-    {"empresa": "STUDIO CONTABILIDADE LTDA", "app_key": "2461014169543", "app_secret": "31ed2d6fbd5d72f5341cf63d043477d9", "cnpj": "23908861000160"},
-    {"empresa": "STUDIO ENERGY", "app_key": "3834645228804", "app_secret": "2e7cfd395a12ce97274db2bb22a5ec7c", "cnpj": "40306477000199"},
-    {"empresa": "STUDIO FACTORING", "app_key": "3834642953328", "app_secret": "2b9f36f6d63d6f14041b31d8e13d96ed", "cnpj": "40211849000164"},
-    {"empresa": "STUDIO FISCAL", "app_key": "3834642953322", "app_secret": "d2ee7fbd30c0065a4c95dd7c4e511417", "cnpj": "40211867000146"},
-    {"empresa": "STUDIO GROWTH", "app_key": "3834645228801", "app_secret": "3e9c20a4b884976451e06dce4495de1e", "cnpj": "40306489000113"},
-    {"empresa": "STUDIO OPERACIONAL", "app_key": "3834645228675", "app_secret": "1e51fbbff5d90ee2b5f6390141154c55", "cnpj": "40306354000158"},
-    {"empresa": "STUDIO OPERACIONAL 01", "app_key": "1298453472506", "app_secret": "f35a0ce97c41bf63675f0a2ba14a84e3", "cnpj": "08031102000266"},
-    {"empresa": "STUDIO PAR", "app_key": "3834645228688", "app_secret": "3c914e6dcfcf633a921d3e1575c32e0c", "cnpj": "40306443000102"},
-    {"empresa": "STUDIO FAMILY", "app_key": "3834645228810", "app_secret": "b5748805f77864f772421db02dd7b6ed", "cnpj": "40306456000165"},
-    {"empresa": "STUDIO SBS STORE", "app_key": "3834642953337", "app_secret": "6eb689a710bbbf6272370ca3bf1d27f8", "cnpj": "40211902000127"},
-    {"empresa": "STUDIO STORE", "app_key": "3834645371691", "app_secret": "4693b7ffc6499388df67f539958064dc", "cnpj": "40306398000188"},
-    {"empresa": "STUDIO VAREJO", "app_key": "3834642953256", "app_secret": "6519213192dd6dfa3520dd11f53d71ff", "cnpj": "40212061000174"}
+    {"empresa": "STUDIO FISCAL", "app_key": "3834642953322", "app_secret": "d2ee7fbd30c0065a4c95dd7c4e511417", "cnpj": "40211867000146"}
 ]
 
 def formatar_registro(cat, empresa_config):
