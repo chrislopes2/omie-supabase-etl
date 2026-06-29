@@ -17,7 +17,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 TODAS_EMPRESAS = [
-    {"empresa": "STUDIO FISCAL", "app_key": "2900565432765", "app_secret": "d409267d73b8886896ffe001c7c93c43", "cnpj": "08865854000142"}
+    {"empresa": "STUDIO FISCAL", "app_key": "2900565432765", "app_secret": "d409267d73b8886896ffe001c7c93c43", "cnpj": "40211867000146"}
 ]
 
 def formatar_registro(cat, empresa_config):
