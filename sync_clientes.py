@@ -64,7 +64,7 @@ def tentar_pagina(url, empresa_config, pagina, tamanho, filtros_extra=None, max_
                 registros = []
                 if "clientes_cadastro" in data and len(data["clientes_cadastro"]) > 0:
                     registros = data["clientes_cadastro"]
-                return True, registros, total_paginas
+                return True, registros, total_paginas, False
             else:
                 if "chave de acesso est" in response.text or "aplicativo est" in response.text:
                     print(f"    ❌ ERRO CRÍTICO DA OMIE: Chave da empresa {empresa_config['empresa']} inválida ou sem permissão para listar clientes.")
