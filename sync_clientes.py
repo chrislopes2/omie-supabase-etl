@@ -69,12 +69,18 @@ def tentar_pagina(url, empresa_config, pagina, tamanho, filtros_extra=None, max_
                 if "chave de acesso est" in response.text or "aplicativo est" in response.text:
                     print(f"    ❌ ERRO CRÍTICO DA OMIE: Chave da empresa {empresa_config['empresa']} inválida ou sem permissão para listar clientes.")
                     return False, [], 0, True # Retorna 4º elemento para indicar bloqueio definitivo
-                elif "ERROR: Nenhum registro encontrado" in response.text:
+                elif "ERROR: Nenhum registro encontrado" in response.text or "registros para a p" in response.text:
                     # A Omie as vezes devolve 500 quando não tem nenhum registro. Assumimos sucesso com 0 resultados.
                     return True, [], 1, False
                 
                 print(f"    Tentativa {tentativa+1} falhou na página {pagina} (tamanho {tamanho}) com status {response.status_code}. Motivo: {response.text}")
-                time.sleep(5)
+                
+                # Se for bloqueio de redundância ou API bloqueada (425), devemos esperar MAIS TEMPO
+                if "REDUNDANT" in response.text or "consumo indevido" in response.text or response.status_code == 425:
+                    print("      ⏳ Pausa forçada de 60s por Rate Limiting da Omie...")
+                    time.sleep(60)
+                else:
+                    time.sleep(5)
         except Exception as e:
             print(f"    Tentativa {tentativa+1} falhou na página {pagina} (tamanho {tamanho}) com erro: {e}. Retentando em 5s...")
             time.sleep(5)
