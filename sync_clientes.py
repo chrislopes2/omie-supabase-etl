@@ -66,12 +66,19 @@ def tentar_pagina(url, empresa_config, pagina, tamanho, filtros_extra=None, max_
                     registros = data["clientes_cadastro"]
                 return True, registros, total_paginas
             else:
-                print(f"    Tentativa {tentativa+1} falhou na página {pagina} (tamanho {tamanho}) com status {response.status_code}. Retentando em 5s...")
+                if "chave de acesso est" in response.text or "aplicativo est" in response.text:
+                    print(f"    ❌ ERRO CRÍTICO DA OMIE: Chave da empresa {empresa_config['empresa']} inválida ou sem permissão para listar clientes.")
+                    return False, [], 0, True # Retorna 4º elemento para indicar bloqueio definitivo
+                elif "ERROR: Nenhum registro encontrado" in response.text:
+                    # A Omie as vezes devolve 500 quando não tem nenhum registro. Assumimos sucesso com 0 resultados.
+                    return True, [], 1, False
+                
+                print(f"    Tentativa {tentativa+1} falhou na página {pagina} (tamanho {tamanho}) com status {response.status_code}. Motivo: {response.text}")
                 time.sleep(5)
         except Exception as e:
             print(f"    Tentativa {tentativa+1} falhou na página {pagina} (tamanho {tamanho}) com erro: {e}. Retentando em 5s...")
             time.sleep(5)
-    return False, [], 0
+    return False, [], 0, False
 
 def zoom_progressivo(url, empresa_config, pagina_falha, tamanho_original, filtros_extra=None):
     """Quando uma página falha, divide em lotes menores para isolar o registro corrompido e resgatar os bons."""
@@ -84,7 +91,7 @@ def zoom_progressivo(url, empresa_config, pagina_falha, tamanho_original, filtro
     print(f"  🔬 ZOOM NÍVEL 1: Tentando recuperar página {pagina_falha} como sub-páginas {pag_inicio}-{pag_fim} (de {tamanho_zoom1} registros)...")
     
     for sub_pag in range(pag_inicio, pag_fim + 1):
-        sucesso, registros, _ = tentar_pagina(url, empresa_config, sub_pag, tamanho_zoom1, filtros_extra, max_tentativas=5)
+        sucesso, registros, _, bloqueio = tentar_pagina(url, empresa_config, sub_pag, tamanho_zoom1, filtros_extra, max_tentativas=5)
         if sucesso:
             registros_recuperados.extend(registros)
             print(f"    ✅ Sub-página {sub_pag}: {len(registros)} clientes recuperados")
@@ -97,7 +104,7 @@ def zoom_progressivo(url, empresa_config, pagina_falha, tamanho_original, filtro
             print(f"    🔬 ZOOM NÍVEL 2: Tentando sub-página {sub_pag} como micro-páginas {micro_inicio}-{micro_fim} (1 cliente cada)...")
             
             for micro_pag in range(micro_inicio, micro_fim + 1):
-                ok, regs, _ = tentar_pagina(url, empresa_config, micro_pag, tamanho_zoom2, filtros_extra, max_tentativas=3)
+                ok, regs, _, bloq = tentar_pagina(url, empresa_config, micro_pag, tamanho_zoom2, filtros_extra, max_tentativas=3)
                 if ok:
                     registros_recuperados.extend(regs)
                 else:
@@ -127,8 +134,11 @@ def puxar_clientes(empresa_config):
         filtros_extra = {"clientesFiltro": {"inativo": inativo}}
         
         while tem_mais:
-            sucesso, registros_pagina, total_paginas = tentar_pagina(url, empresa_config, pagina, TAMANHO_PAGINA, filtros_extra)
+            sucesso, registros_pagina, total_paginas, bloqueio_definitivo = tentar_pagina(url, empresa_config, pagina, TAMANHO_PAGINA, filtros_extra)
             
+            if bloqueio_definitivo:
+                return [] # Interrompe a busca desta empresa imediatamente
+                
             if sucesso:
                 total_paginas_conhecido = total_paginas
                 todos_registros_brutos.extend(registros_pagina)
