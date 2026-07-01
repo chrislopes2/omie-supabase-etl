@@ -30,7 +30,15 @@ with
       cl.razao_social,
       cp.data_vencimento,
       cp.data_previsao,
-      COALESCE(cc.max_data_lancamento, cp.data_vencimento) as data_lancamento,
+      COALESCE(
+        TO_DATE(NULLIF(cp.json_bruto -> 'info' ->> 'dDtPagamento', ''), 'DD/MM/YYYY'),
+        TO_DATE(NULLIF(cp.json_bruto -> 'info' ->> 'dDtBaixa', ''), 'DD/MM/YYYY'),
+        TO_DATE(NULLIF(cp.json_bruto -> 'resumo' ->> 'dDtBaixa', ''), 'DD/MM/YYYY'),
+        TO_DATE(NULLIF(cp.json_bruto ->> 'data_pagamento', ''), 'DD/MM/YYYY'),
+        TO_DATE(NULLIF(cp.json_bruto ->> 'data_baixa', ''), 'DD/MM/YYYY'),
+        cc.max_data_lancamento, 
+        cp.data_vencimento
+      ) as data_lancamento,
       cp.codigo_lancamento_omie,
       case
         when cc.id_conta_corrente is not null then 'PAGO (No Banco)'::character varying
