@@ -3,7 +3,6 @@ import requests
 
 url = os.environ.get('SUPABASE_URL').rstrip('/')
 key = os.environ.get('SUPABASE_KEY')
-
 sql = """
 create or replace view public.painel_contas_pagar as
 with
@@ -75,7 +74,27 @@ with
           COALESCE(dx."nPerDep", dx."nPerc", 100::numeric) / 100.0
         ), 
         2
-      ) as valor_final
+      ) as valor_final,
+      ROUND(
+        - ( COALESCE(cx.percentual, 100::numeric) / 100.0 * cp.valor_documento )
+        * ( COALESCE(dx."nPerDep", dx."nPerc", 100::numeric) / 100.0 ),
+        2
+      ) as valor_original,
+      ROUND(
+        - ( COALESCE(cx.percentual, 100::numeric) / 100.0 * COALESCE((cp.json_bruto -> 'resumo' ->> 'nValJuros')::numeric, cp.valor_juros, 0) )
+        * ( COALESCE(dx."nPerDep", dx."nPerc", 100::numeric) / 100.0 ),
+        2
+      ) as valor_juros,
+      ROUND(
+        - ( COALESCE(cx.percentual, 100::numeric) / 100.0 * COALESCE((cp.json_bruto -> 'resumo' ->> 'nValMulta')::numeric, cp.valor_multa, 0) )
+        * ( COALESCE(dx."nPerDep", dx."nPerc", 100::numeric) / 100.0 ),
+        2
+      ) as valor_multa,
+      ROUND(
+        ( COALESCE(cx.percentual, 100::numeric) / 100.0 * COALESCE((cp.json_bruto -> 'resumo' ->> 'nValDesconto')::numeric, cp.valor_desconto, 0) )
+        * ( COALESCE(dx."nPerDep", dx."nPerc", 100::numeric) / 100.0 ),
+        2
+      ) as valor_desconto
     from
       contas_pagar cp
       left join (
@@ -181,7 +200,21 @@ with
           COALESCE(dx."nPerDep", dx."nPerc", 100::numeric) / 100.0
         ), 
         2
-      ) as valor_final
+      ) as valor_final,
+      ROUND(
+        (
+          case
+            when cc.natureza::text = 'P'::text then '-1'::integer
+            else 1
+          end::numeric * COALESCE(cx."nValCateg", abs(cc.valor))
+        ) * (
+          COALESCE(dx."nPerDep", dx."nPerc", 100::numeric) / 100.0
+        ), 
+        2
+      ) as valor_original,
+      0::numeric as valor_juros,
+      0::numeric as valor_multa,
+      0::numeric as valor_desconto
     from
       conta_corrente cc
       left join lateral jsonb_to_recordset(
@@ -244,7 +277,11 @@ select
   base_cp.codigo_cliente_fornecedor,
   base_cp.categoria,
   base_cp.departamento,
-  base_cp.valor_final
+  base_cp.valor_final,
+  base_cp.valor_original,
+  base_cp.valor_juros,
+  base_cp.valor_multa,
+  base_cp.valor_desconto
 from
   base_cp
 union all
@@ -261,7 +298,11 @@ select
   base_cc.codigo_cliente_fornecedor,
   base_cc.categoria,
   base_cc.departamento,
-  base_cc.valor_final
+  base_cc.valor_final,
+  base_cc.valor_original,
+  base_cc.valor_juros,
+  base_cc.valor_multa,
+  base_cc.valor_desconto
 from
   base_cc;
 """
