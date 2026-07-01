@@ -24,11 +24,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           
-      - name: Executando o Script Principal (Cadastros)
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python main.py
+
 
       - name: Executando o Script de Contas a Receber
         env:
