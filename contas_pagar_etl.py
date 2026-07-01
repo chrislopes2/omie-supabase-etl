@@ -110,6 +110,9 @@ def formatar_registro(conta, empresa_config):
         "valor_inss": conta.get("valor_inss"),
         "valor_pis": conta.get("valor_pis"),
         "valor_iss": conta.get("valor_iss"),
+        "valor_juros": conta.get("valor_juros"),
+        "valor_multa": conta.get("valor_multa"),
+        "valor_desconto": conta.get("valor_desconto"),
         "distribuicao": tratar_json(conta.get("distribuicao")),
         "info": tratar_json(conta.get("info")),
         "categorias": tratar_json(conta.get("categorias"))
