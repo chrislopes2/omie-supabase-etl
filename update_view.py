@@ -53,8 +53,8 @@ with
       ROUND(
         (
           case 
-            when cc.id_conta_corrente is not null then
-              -- Quando PAGO no extrato bancario, extrai O VALOR EXACTO DO PAGAMENTO consolidado (Multas, Descontos, Abatimentos) a partir do Resumo da Omie
+            when cc.id_conta_corrente is not null or cp.status_titulo = 'PAGO' then
+              -- Quando PAGO na Omie ou no Extrato bancario, extrai O VALOR EXACTO DO PAGAMENTO
               - ( COALESCE(cx.valor, COALESCE(cx.percentual, 100::numeric) / 100.0 * 
                   COALESCE(
                     (cp.json_bruto -> 'resumo' ->> 'nValPago')::numeric, 
@@ -66,7 +66,7 @@ with
               -- Quando ABERTO (nao baixado), prevemos a parcela cheia ou o que restou (nValAberto)
               - ( COALESCE(cx.valor, COALESCE(cx.percentual, 100::numeric) / 100.0 * 
                   COALESCE(
-                    (cp.json_bruto -> 'resumo' ->> 'nValAberto')::numeric,
+                    NULLIF((cp.json_bruto -> 'resumo' ->> 'nValAberto')::numeric, 0),
                     cp.valor_documento
                   )
                 ) )
