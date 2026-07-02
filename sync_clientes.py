@@ -82,8 +82,9 @@ def tentar_pagina(url, empresa_config, pagina, tamanho, filtros_extra=None, max_
                 else:
                     time.sleep(5)
         except Exception as e:
-            print(f"    Tentativa {tentativa+1} falhou na página {pagina} (tamanho {tamanho}) com erro: {e}. Retentando em 5s...")
-            time.sleep(5)
+            wait_time = min(5 * (2 ** tentativa), 60) # Backoff: 5, 10, 20, 40, 60s
+            print(f"    Tentativa {tentativa+1} falhou na página {pagina} (tamanho {tamanho}) com erro: {e}. Retentando em {wait_time}s...")
+            time.sleep(wait_time)
     return False, [], 0, False
 
 def zoom_progressivo(url, empresa_config, pagina_falha, tamanho_original, filtros_extra=None):
