@@ -221,7 +221,12 @@ def puxar_contas_pagar(empresa_config):
                 for conta in registros_zoom:
                     todos_registros.append(formatar_registro(conta, empresa_config))
                 print(f"  🔬 Zoom recuperou {len(registros_zoom)} de {TAMANHO_PAGINA} registros da página {pagina}")
-                pagina += 1
+                
+                if len(registros_zoom) == 0 and total_paginas_conhecido == 999999:
+                    print("  🛑 Nenhuma página foi carregada com sucesso e o zoom retornou 0 registros. Interrompendo loop para evitar repetição infinita.")
+                    tem_mais = False
+                else:
+                    pagina += 1
     
     return todos_registros
 
