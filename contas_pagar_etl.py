@@ -250,7 +250,7 @@ def enviar_para_supabase(registros, empresa_nome):
         lote = registros[i:i + tamanho_lote]
         for tentativa in range(5):
             try:
-                resp = requests.post(f"{SUPABASE_URL}/rest/v1/contas_pagar", json=lote, headers=headers_supabase)
+                resp = requests.post(f"{SUPABASE_URL}/rest/v1/contas_pagar", json=lote, headers=headers_supabase, timeout=60)
                 if resp.status_code in (200, 201):
                     total_enviado += len(lote)
                     break

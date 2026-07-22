@@ -184,7 +184,7 @@ def rodar_rotina_extrato():
                 tamanho_lote = 500
                 for i in range(0, len(movimentos), tamanho_lote):
                     lote = movimentos[i:i + tamanho_lote]
-                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/extrato_bancario", json=lote, headers=headers_supabase)
+                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/extrato_bancario", json=lote, headers=headers_supabase, timeout=60)
                     if resp.status_code not in (200, 201):
                          print(f"❌ Erro na API do Supabase (Extrato): {resp.text}")
                 print(f"✅ Inseridos {len(movimentos)} movimentos de extrato para {empresa['empresa']}")

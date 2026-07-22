@@ -153,7 +153,7 @@ def rodar_rotina_cr():
                 tamanho_lote = 500
                 for i in range(0, len(contas), tamanho_lote):
                     lote = contas[i:i + tamanho_lote]
-                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/contas_receber_grupo", json=lote, headers=headers_supabase)
+                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/contas_receber_grupo", json=lote, headers=headers_supabase, timeout=60)
                     if resp.status_code not in (200, 201):
                          print(f"❌ Erro na API do Supabase (Contas): {resp.text}")
                 print(f"✅ Inseridas {len(contas)} contas a receber para {empresa['empresa']}")

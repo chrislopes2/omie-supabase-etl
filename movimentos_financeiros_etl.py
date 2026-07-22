@@ -161,7 +161,7 @@ def rodar_rotina_mf():
                 tamanho_lote = 500
                 for i in range(0, len(movimentos), tamanho_lote):
                     lote = movimentos[i:i + tamanho_lote]
-                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/movimentos_financeiros", json=lote, headers=headers_supabase)
+                    resp = requests.post(f"{SUPABASE_URL}/rest/v1/movimentos_financeiros", json=lote, headers=headers_supabase, timeout=60)
                     if resp.status_code not in (200, 201):
                          print(f"❌ Erro na API do Supabase (Movimentos Financeiros): {resp.text}")
                 print(f"✅ Inseridas {len(movimentos)} Movimentos Financeiros para {empresa['empresa']}")
