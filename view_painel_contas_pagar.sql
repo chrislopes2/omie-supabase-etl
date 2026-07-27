@@ -43,6 +43,32 @@ with
       ) as codigo_cliente_fornecedor,
       cat.descricao as categoria,
       dep_omie.descricao as departamento,
+      
+      case when cl.cnpj_cpf = any (
+          array[
+            '12340921000182'::text, '62700834000167'::text, '44158057000199'::text, '01501108000120'::text, '23382154000190'::text,
+            '42622192000118'::text, '56378880000199'::text, '36657397000136'::text, '39287808000137'::text, '36480461000156'::text,
+            '27057563000172'::text, '36530240000145'::text, '39484812000195'::text, '37852789000119'::text, '42380661000130'::text,
+            '14723195000102'::text, '34349108000106'::text, '42275720000100'::text, '08865854000142'::text, '36685910000100'::text,
+            '47244267053'::text, '57341084000144'::text, '23448109000191'::text, '11863345000195'::text, '39349860000170'::text,
+            '58420510000106'::text, '48552493000107'::text, '44189727000134'::text, '53192862000120'::text
+          ]
+      ) then true else false end as is_intercompany,
+
+      -- Helper columns for logic
+      COALESCE(cx.percentual, 100::numeric) / 100.0 as pct_cat,
+      COALESCE(dx."nPerDep", dx."nPerc", (dx."nValDep" / NULLIF(cp.valor_documento, 0)) * 100, 100::numeric) / 100.0 as pct_dep,
+      cc.soma_valor_banco,
+      case 
+        when (jsonb_typeof(cp.categorias) = 'array' and jsonb_array_length(cp.categorias) > 1)
+          or (jsonb_typeof(cp.distribuicao::jsonb) = 'array' and jsonb_array_length(cp.distribuicao::jsonb) > 1)
+        then true else false 
+      end as tem_rateio,
+      case 
+        when cc.soma_valor_banco > (cp.valor_documento * 1.2) then true 
+        else false 
+      end as is_lote,
+
       ROUND(
         - ( COALESCE(cx.percentual, 100::numeric) / 100.0 * cp.valor_documento )
         * ( COALESCE(dx."nPerDep", dx."nPerc", (dx."nValDep" / NULLIF(cp.valor_documento, 0)) * 100, 100::numeric) / 100.0 ),
@@ -94,7 +120,8 @@ with
           conta_corrente.id_origem_pagar,
           conta_corrente.empresa_cnpj,
           max(conta_corrente.data_lancamento) as max_data_lancamento,
-          max(conta_corrente.id_cliente_fornecedor) as id_cliente_fornecedor
+          max(conta_corrente.id_cliente_fornecedor) as id_cliente_fornecedor,
+          sum(abs(conta_corrente.valor)) as soma_valor_banco
         from
           conta_corrente
         where
@@ -171,15 +198,28 @@ with
       codigo_cliente_fornecedor,
       categoria,
       departamento,
+      is_intercompany,
       case
         when status_titulo = 'PAGO' or status_titulo = 'PAGO (No Banco)' then
-          valor_original + valor_juros + valor_multa + valor_desconto
+          case
+            -- Se for pagamento em lote e possuir rateio, usa o valor do documento CP
+            when tem_rateio = true and is_lote = true then
+              valor_original + valor_juros + valor_multa + valor_desconto
+            -- Caso contrário (sem rateio ou pagamento individual), usa a soma da CC
+            else
+              ROUND( - (COALESCE(soma_valor_banco, abs(valor_original + valor_juros + valor_multa + valor_desconto))) * pct_cat * pct_dep, 2)
+          end
         else
           valor_original
       end as valor_final,
       case
         when status_titulo = 'PAGO' or status_titulo = 'PAGO (No Banco)' then
-          valor_original + valor_juros + valor_multa + valor_desconto
+          case
+            when tem_rateio = true and is_lote = true then
+              valor_original + valor_juros + valor_multa + valor_desconto
+            else
+              ROUND( - (COALESCE(soma_valor_banco, abs(valor_original + valor_juros + valor_multa + valor_desconto))) * pct_cat * pct_dep, 2)
+          end
         else
           0::numeric
       end as valor_pago,
@@ -209,10 +249,20 @@ with
         'Despesa Bancária / Direta'::character varying
       ) as categoria,
       dep_omie.descricao as departamento,
+      case when cl.cnpj_cpf = any (
+          array[
+            '12340921000182'::text, '62700834000167'::text, '44158057000199'::text, '01501108000120'::text, '23382154000190'::text,
+            '42622192000118'::text, '56378880000199'::text, '36657397000136'::text, '39287808000137'::text, '36480461000156'::text,
+            '27057563000172'::text, '36530240000145'::text, '39484812000195'::text, '37852789000119'::text, '42380661000130'::text,
+            '14723195000102'::text, '34349108000106'::text, '42275720000100'::text, '08865854000142'::text, '36685910000100'::text,
+            '47244267053'::text, '57341084000144'::text, '23448109000191'::text, '11863345000195'::text, '39349860000170'::text,
+            '58420510000106'::text, '48552493000107'::text, '44189727000134'::text, '53192862000120'::text
+          ]
+      ) then true else false end as is_intercompany,
       ROUND(
         (
           case
-            when cc.natureza::text = 'P'::text then '-1'::integer
+            when cc.natureza::text IN ('P', 'S', 'D') then '-1'::integer
             else 1
           end::numeric * COALESCE(cx."nValCateg", abs(cc.valor))
         ) * (
@@ -223,7 +273,7 @@ with
       ROUND(
         (
           case
-            when cc.natureza::text = 'P'::text then '-1'::integer
+            when cc.natureza::text IN ('P', 'S', 'D') then '-1'::integer
             else 1
           end::numeric * COALESCE(cx."nValCateg", abs(cc.valor))
         ) * (
@@ -234,7 +284,7 @@ with
       ROUND(
         (
           case
-            when cc.natureza::text = 'P'::text then '-1'::integer
+            when cc.natureza::text IN ('P', 'S', 'D') then '-1'::integer
             else 1
           end::numeric * COALESCE(cx."nValCateg", abs(cc.valor))
         ) * (
@@ -292,7 +342,7 @@ with
       and dep_omie.empresa_cnpj = cc.empresa_cnpj
     where
       cc.id_origem_pagar is null
-      and (cc.id_origem_receber is null or cc.natureza::text = 'P'::text)
+      and (cc.id_origem_receber is null or cc.natureza::text IN ('P', 'S', 'D'))
   )
 select
   base_cp.empresa_nome,
@@ -307,6 +357,7 @@ select
   base_cp.codigo_cliente_fornecedor,
   base_cp.categoria,
   base_cp.departamento,
+  base_cp.is_intercompany,
   base_cp.valor_final,
   base_cp.valor_pago,
   base_cp.valor_original,
@@ -330,6 +381,7 @@ select
   base_cc.codigo_cliente_fornecedor,
   base_cc.categoria,
   base_cc.departamento,
+  base_cc.is_intercompany,
   base_cc.valor_final,
   base_cc.valor_pago,
   base_cc.valor_original,
