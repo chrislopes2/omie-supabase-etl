@@ -44,7 +44,7 @@ with
       cat.descricao as categoria,
       dep_omie.descricao as departamento,
       
-      case when cl.cnpj_cpf = any (
+      case when REGEXP_REPLACE(cl.cnpj_cpf, '\D', '', 'g') = any (
           array[
             '12340921000182'::text, '62700834000167'::text, '44158057000199'::text, '01501108000120'::text, '23382154000190'::text,
             '42622192000118'::text, '56378880000199'::text, '36657397000136'::text, '39287808000137'::text, '36480461000156'::text,
@@ -249,7 +249,7 @@ with
         'Despesa Bancária / Direta'::character varying
       ) as categoria,
       dep_omie.descricao as departamento,
-      case when cl.cnpj_cpf = any (
+      case when REGEXP_REPLACE(cl.cnpj_cpf, '\D', '', 'g') = any (
           array[
             '12340921000182'::text, '62700834000167'::text, '44158057000199'::text, '01501108000120'::text, '23382154000190'::text,
             '42622192000118'::text, '56378880000199'::text, '36657397000136'::text, '39287808000137'::text, '36480461000156'::text,

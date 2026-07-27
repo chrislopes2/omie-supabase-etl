@@ -237,7 +237,7 @@ with
             ]
           )
         ) then 'CORPORATE'::text
-        when a.cnpj_cpf = any (
+        when REGEXP_REPLACE(a.cnpj_cpf, '\D', '', 'g') = any (
           array[
             '12340921000182'::text,
             '62700834000167'::text,
