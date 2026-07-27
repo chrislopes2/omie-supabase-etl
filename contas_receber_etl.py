@@ -93,6 +93,7 @@ def puxar_contas_receber(empresa_config):
                                 "valor_documento": conta.get("valor_documento"),
                                 "status_titulo": conta.get("status_titulo"),
                                 "codigo_categoria": conta.get("codigo_categoria"),
+                                "numero_contrato": conta.get("numero_contrato") or conta.get("cNumeroContrato"),
                                 "categorias": tratar_json(conta.get("categorias")),
                                 "distribuicao": tratar_json(conta.get("distribuicao"))
                             }
