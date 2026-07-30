@@ -190,7 +190,7 @@ def main(empresa_alvo=None):
                     lote = departamentos[i:i+500]
                     for tentativa in range(10):
                         try:
-                            resp = requests.post(f"{SUPABASE_URL}/rest/v1/departamentos_omie", json=lote, headers=headers_supabase)
+                            resp = requests.post(f"{SUPABASE_URL}/rest/v1/departamentos_omie", json=lote, headers=headers_supabase, timeout=60)
                             if resp.status_code not in (200, 201):
                                 raise Exception(f"Erro na API do Supabase: {resp.text}")
                             break
