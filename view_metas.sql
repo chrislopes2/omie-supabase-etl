@@ -296,6 +296,8 @@ with
             'RECEITA DE FRANQUIA/ALIANÇA'::text,
             'RECEITA DE IMPLANTAÇÃO'::text,
             'LICENÇAS DE SOFTWARES E PROGRAMAS PJ360'::text,
+            'RECEITA DE LICENÇAS DE SOFWARES - PJ360'::text,
+            'RECEITA DE LICENÇAS DE SOFTWARES - PJ360'::text,
             'RECEITA DE PRODUTOS/LOJA'::text
           ]
         ) then 'EXPANSÃO'::text
