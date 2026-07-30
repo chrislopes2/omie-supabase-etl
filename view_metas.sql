@@ -380,7 +380,9 @@ with
             'RECEITA DE ENERGY ASSESSORIA - RCE'::text,
             'RECEITA DE FINANCIAMENTO - AMORTIZAÇÃO DE CRÉDITO'::text,
             'RECEITA DE FINANCIAMENTO - RENDIMENTO DE FINANCIAMENTO'::text,
-            'RECEITA DE RECUPERA ENERGIA'::text
+            'RECEITA DE RECUPERA ENERGIA'::text,
+            'RECEITA DE ANTEPICAÇÃO DE RECEBÍVEIS'::text,
+            'RECEITA DE ANTECIPAÇÃO DE RECEBÍVEIS'::text
           ]
         ) then 'CORPORATE'::text
         when upper(a.descricao_cat::text) = any (
@@ -423,7 +425,10 @@ with
             'RECEITA DIVERSA'::text,
             'RECEITA DE SERVIÇO DE IMPRESSÃO'::text,
             'DEVOLUÇÃO DE CAPITAL DE GIRO'::text,
-            'DESCONTOS OBTIDOS'::text
+            'DESCONTOS OBTIDOS'::text,
+            'RECEITA DE SERVIÇOS DE IMPRESSÃO'::text,
+            'RESTITUIÇÃO E RECUPERAÇÃO DE TRIBUTOS'::text,
+            'TAXAS BANCÁRIAS'::text
           ]
         ) then 'OUTRAS RECEITAS'::text
         when upper(a.descricao_cat::text) = any (
@@ -445,7 +450,8 @@ with
             'RECEITA DE LOCAÇÃO DE ESPAÇO E ESTACIONAMENTO'::text,
             'RECEITA DE LOCAÇÃO DE ESPAÇO'::text,
             'RECEITA DE ESTACIONAMENTO'::text,
-            'RECEITA DE COWORKING'::text
+            'RECEITA DE COWORKING'::text,
+            'RECEITA DE CESSÃO DE USO DE IMÓVEL'::text
           ]
         ) then 'ADMINISTRAÇÃO'::text
         else 'SEM CATEGORIA'::text
