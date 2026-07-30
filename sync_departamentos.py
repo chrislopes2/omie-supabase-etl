@@ -138,7 +138,11 @@ def puxar_departamentos_isolado(empresa_config):
                 registros_zoom = zoom_progressivo(url, empresa_config, pagina, TAMANHO_PAGINA)
                 todos_registros_brutos.extend(registros_zoom)
                 print(f"  🔬 Zoom recuperou {len(registros_zoom)} de {TAMANHO_PAGINA} departamentos da página {pagina}")
-                pagina += 1
+                if len(registros_zoom) == 0 and total_paginas_conhecido == 999999:
+                    print("  🛑 Nenhuma página foi carregada com sucesso e o zoom retornou 0 registros. Interrompendo loop para evitar repetição infinita.")
+                    tem_mais = False
+                else:
+                    pagina += 1
                 
     todos_registros = []
     chaves_processadas = set()
