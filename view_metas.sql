@@ -224,16 +224,14 @@ with
       a.descricao_dept,
       a.valor_cat_dept,
       case
-        when TRIM(
-          both
-          from
-            upper(a.descricao_cat::text)
-        ) ~~ '%RECEITA DE CONTABILIDADE RECORRENTE%'::text
+        when TRIM(both from upper(a.descricao_cat::text)) ~~ '%RECEITA DE CONTABILIDADE RECORRENTE%'::text
         or (
           upper(a.descricao_cat::text) = any (
             array[
               'RECEITA DE GESTÃO DE MERCADO LIVRE DE ENERGIA'::text,
-              'RECEITA DE MERCADO LIVRE DE ENERGIA'::text
+              'RECEITA DE MERCADO LIVRE DE ENERGIA'::text,
+              'RECEITA DE HOLDING'::text,
+              'RECEITA DE SERVIÇOS CONTÁBEIS'::text
             ]
           )
         ) then 'CORPORATE'::text
