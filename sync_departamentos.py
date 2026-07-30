@@ -31,7 +31,7 @@ TODAS_EMPRESAS = [
     {"empresa": "STUDIO BROKERS", "app_key": "2565310101354", "app_secret": "0166509939b498522945eb7eb87c9ce9", "cnpj": "14.723.195/0001-02"},
     {"empresa": "STUDIO CONTABILIDADE LTDA", "app_key": "4105288894707", "app_secret": "658c1f268171df853fcc746e2910884d", "cnpj": "53.192.862/0001-20"},
     {"empresa": "STUDIO ENERGY", "app_key": "2565463434534", "app_secret": "00f89766f3241b69815b088798c3931f", "cnpj": "34.349.108/0001-06"},
-    {"empresa": "STUDIO FACTORING", "app_key": "2815419517911", "app_secret": "7529bcff39c5e1bcf28ea26124238737", "cnpj": "42.275.720/0001-00"},
+    # {"empresa": "STUDIO FACTORING", "app_key": "2815419517911", "app_secret": "7529bcff39c5e1bcf28ea26124238737", "cnpj": "42.275.720/0001-00"},
     {"empresa": "STUDIO FISCAL", "app_key": "2900565432765", "app_secret": "d409267d73b8886896ffe001c7c93c43", "cnpj": "08.865.854/0001-42"},
     {"empresa": "STUDIO GROWTH", "app_key": "2565409767921", "app_secret": "3e475f5cd987c58f4cf75c97defe25c2", "cnpj": "36.685.910/0001-00"},
     {"empresa": "STUDIO OPERACIONAL", "app_key": "2904360428970", "app_secret": "fbc75836f2a73b196223b5b589306c47", "cnpj": "23.448.109/0001-91"},
