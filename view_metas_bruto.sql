@@ -28,7 +28,14 @@ with
         (cat.elem ->> 'percentual'::text)::numeric,
         100::numeric
       ) as percentual_categoria,
-      COALESCE(cr.valor_documento, 0::numeric) as valor_conta
+      case 
+        when cr.status_titulo ILIKE '%PARCIAL%' then COALESCE(cc.valor, 0::numeric)
+        else COALESCE(cr.valor_documento, 0::numeric)
+      end as valor_conta,
+      case 
+        when cr.status_titulo ILIKE '%PARCIAL%' then 'SIM'
+        else 'NÃO'
+      end as pagamento_parcial
     from
       contas_receber_grupo cr
       left join conta_corrente cc on cr.codigo_lancamento_omie = cc.id_origem_receber
@@ -64,6 +71,7 @@ with
       cr.percentual_categoria,
       co.descricao as descricao_cat,
       cr.valor_conta,
+      cr.pagamento_parcial,
       dep.elem ->> 'cCodDep'::text as ccoddep,
       (dep.elem ->> 'nPerDep'::text)::numeric as percentual_departamento
     from
@@ -98,6 +106,7 @@ with
       av.codigo_categoria_expl,
       av.percentual_categoria,
       av.descricao_cat,
+      av.pagamento_parcial,
       max(av.valor_conta) as valor_conta,
       av.ccoddep,
       av.percentual_departamento
@@ -116,6 +125,7 @@ with
       av.codigo_categoria_expl,
       av.percentual_categoria,
       av.descricao_cat,
+      av.pagamento_parcial,
       av.ccoddep,
       av.percentual_departamento
   ),
@@ -131,6 +141,7 @@ with
       av.numero_contrato,
       av.descricao_cat,
       av.percentual_categoria,
+      av.pagamento_parcial,
       av.ccoddep,
       av.percentual_departamento,
       d.descricao as descricao_dept,
@@ -154,6 +165,7 @@ with
       av.numero_contrato,
       av.descricao_cat,
       av.percentual_categoria,
+      av.pagamento_parcial,
       null::text as ccoddep,
       null::numeric as percentual_departamento,
       null::text as descricao_dept,
@@ -182,6 +194,7 @@ with
       d.numero_contrato,
       d.descricao_cat,
       d.percentual_categoria,
+      d.pagamento_parcial,
       d.ccoddep,
       d.percentual_departamento,
       d.descricao_dept,
@@ -200,6 +213,7 @@ with
       sd.numero_contrato,
       sd.descricao_cat,
       sd.percentual_categoria,
+      sd.pagamento_parcial,
       sd.ccoddep,
       sd.percentual_departamento,
       sd.descricao_dept,
@@ -219,6 +233,7 @@ with
       a.numero_contrato,
       a.descricao_cat,
       a.percentual_categoria,
+      a.pagamento_parcial,
       a.ccoddep,
       a.percentual_departamento,
       a.descricao_dept,
@@ -332,6 +347,7 @@ select
   percentual_departamento,
   descricao_dept,
   round(valor_cat_dept, 2) as valor_bruto,
-  categoria
+  categoria,
+  pagamento_parcial
 from
   classificando c;
