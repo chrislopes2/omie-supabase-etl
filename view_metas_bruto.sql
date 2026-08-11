@@ -28,10 +28,7 @@ with
         (cat.elem ->> 'percentual'::text)::numeric,
         100::numeric
       ) as percentual_categoria,
-      case 
-        when cr.status_titulo ILIKE '%PARCIAL%' or (cc.valor > 0 and cc.valor < cr.valor_documento) then COALESCE(cc.valor, 0::numeric)
-        else COALESCE(cr.valor_documento, 0::numeric)
-      end as valor_conta,
+      COALESCE(cr.valor_documento, 0::numeric) as valor_conta,
       case 
         when cr.status_titulo ILIKE '%PARCIAL%' or (cc.valor > 0 and cc.valor < cr.valor_documento) then 'SIM'
         else 'NÃO'
