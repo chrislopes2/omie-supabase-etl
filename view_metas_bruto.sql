@@ -69,6 +69,7 @@ with
       co.descricao as descricao_cat,
       cr.valor_conta,
       cr.pagamento_parcial,
+      cr.status_titulo as situacao,
       dep.elem ->> 'cCodDep'::text as ccoddep,
       (dep.elem ->> 'nPerDep'::text)::numeric as percentual_departamento
     from
@@ -104,6 +105,7 @@ with
       av.percentual_categoria,
       av.descricao_cat,
       av.pagamento_parcial,
+      av.situacao,
       max(av.valor_conta) as valor_conta,
       av.ccoddep,
       av.percentual_departamento
@@ -123,6 +125,7 @@ with
       av.percentual_categoria,
       av.descricao_cat,
       av.pagamento_parcial,
+      av.situacao,
       av.ccoddep,
       av.percentual_departamento
   ),
@@ -139,6 +142,7 @@ with
       av.descricao_cat,
       av.percentual_categoria,
       av.pagamento_parcial,
+      av.situacao,
       av.ccoddep,
       av.percentual_departamento,
       d.descricao as descricao_dept,
@@ -163,6 +167,7 @@ with
       av.descricao_cat,
       av.percentual_categoria,
       av.pagamento_parcial,
+      av.situacao,
       null::text as ccoddep,
       null::numeric as percentual_departamento,
       null::text as descricao_dept,
@@ -192,6 +197,7 @@ with
       d.descricao_cat,
       d.percentual_categoria,
       d.pagamento_parcial,
+      d.situacao,
       d.ccoddep,
       d.percentual_departamento,
       d.descricao_dept,
@@ -211,6 +217,7 @@ with
       sd.descricao_cat,
       sd.percentual_categoria,
       sd.pagamento_parcial,
+      sd.situacao,
       sd.ccoddep,
       sd.percentual_departamento,
       sd.descricao_dept,
@@ -231,6 +238,7 @@ with
       a.descricao_cat,
       a.percentual_categoria,
       a.pagamento_parcial,
+      a.situacao,
       a.ccoddep,
       a.percentual_departamento,
       a.descricao_dept,
@@ -345,6 +353,7 @@ select
   descricao_dept,
   round(valor_cat_dept, 2) as valor_bruto,
   categoria,
-  pagamento_parcial
+  pagamento_parcial,
+  situacao
 from
   classificando c;
